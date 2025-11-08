@@ -1,0 +1,6 @@
+#ifndef SERVER_HPP
+#define SERVER_HPP
+
+#define LISTENING_PORT 5094
+#define PENDING_QUEUE_MAXLENGTH 1000000
+#endif
