@@ -34,15 +34,16 @@ bool Server::parseRequest()
 	std::istringstream str(_buffer_in);
 
 	str >> _method >> _uri >> _httpVersion;
-	if (_method != "GET" || _method != "POST" || _method != "DELETE")
+	if (_method != "GET" && _method != "POST" && _method != "DELETE")
 		return (false);
 	if (_httpVersion != "HTTP/1.1")
 		return (false);
 	size_t q_pos = _uri.find("?");
 	if (q_pos != std::string::npos)
+	{
 		_query = _uri.substr(q_pos + 1);
 		_uri = _uri.substr(0, q_pos);
-
+	}
 	pos = _buffer_in.find("\n");
 	headers = _buffer_in.substr(pos + 1);
 	std::istringstream h(headers);
@@ -111,7 +112,7 @@ void Server::read_data_from_socket(int Socket)
 		std::cout << _buffer_in << std::endl;
 		if (parseRequest())
 		{
-			// _state = CLIENT_PROCESS;
+			std::cout << "true" << std::endl;
 		}
 		// else
 		// {
