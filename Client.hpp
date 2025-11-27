@@ -16,7 +16,7 @@
 #include <fcntl.h>
 #include <sys/poll.h>
 
-#define LISTENING_PORT 6767
+#define LISTENING_PORT 8082
 
 class Client
 {

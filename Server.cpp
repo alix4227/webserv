@@ -1,4 +1,5 @@
 #include "Server.hpp"
+
 Server::Server()
 {
 	// 1. Créer la socket
@@ -22,12 +23,46 @@ Server::~Server()
 {
 	
 }
+bool Server::parseRequest()
+{
+	size_t pos = 0;
+	std::string key;
+	std::string value;
+	std::string body;
+	std::string headers;
+	std::string line;
+	std::istringstream str(_buffer_in);
 
-// void Server::add_to_poll_fds(poll_fds, client_fd, poll_count, poll_size)
-// {
-
-// }
-void Server::accept_new_connection(int server_socket, std::vector<pollfd>& poll_fds, struct sockaddr_in socketAddress, socklen_t socketAdressLength)
+	str >> _method >> _uri >> _httpVersion;
+	if (_method != "GET" || _method != "POST" || _method != "DELETE")
+		return (false);
+	if (_httpVersion != "HTTP/1.1")
+		return (false);
+	size_t q_pos = _uri.find("?");
+	
+	pos = _buffer_in.find("\n");
+	headers = _buffer_in.substr(pos + 1);
+	std::istringstream h(headers);
+	while (getline(h, line))
+	{
+		std::istringstream map(line);
+		map >> key >> value;
+		_headers[key] = value;
+	}
+	pos = _buffer_in.find("\r\n\r\n");
+	_body = _buffer_in.substr(pos + 4);
+	return (true);
+}
+void Server::add_to_poll_fds()
+{
+	pollfd p;
+	p.fd = _clientSocket;
+	p.events = POLLIN;
+	_poll_fds.push_back(p);
+ 
+}
+void Server::accept_new_connection(int server_socket, std::vector<pollfd>& poll_fds,
+	struct sockaddr_in& socketAddress, socklen_t& socketAdressLength)
 {
 	(void)poll_fds;
 	char msg_to_send[BUFSIZ];
@@ -40,7 +75,7 @@ void Server::accept_new_connection(int server_socket, std::vector<pollfd>& poll_
 		return ;
 	}
 	fcntl(_clientSocket, F_SETFL, O_NONBLOCK);
-	// add_to_poll_fds(poll_fds, client_fd, poll_count, poll_size);
+	add_to_poll_fds();
 	std::cout << "[Server] Accepted new connection on client socket " <<  _clientSocket << std::endl;
 	sprintf(msg_to_send, "Welcome. You are client fd [%d]\n", _clientSocket);
     int status = send(_clientSocket, msg_to_send, strlen(msg_to_send), 0);
@@ -51,7 +86,37 @@ void Server::accept_new_connection(int server_socket, std::vector<pollfd>& poll_
     }
 
 }
-
+void Server::read_data_from_socket(int Socket)
+{
+	char buffer[BUFSIZ];
+    int bytes_read;
+	
+    memset(&buffer, '\0', sizeof buffer);
+    bytes_read = recv(Socket, buffer, BUFSIZ, 0);
+	if (bytes_read <= 0) 
+	{
+		if (bytes_read == 0) 
+			printf("[%d] Client socket closed connection.\n", Socket);
+		else 
+			fprintf(stderr, "[Server] Recv error: %s\n", strerror(errno));
+		// _state = CLIENT_CLOSE;//FERME LE SOCKET
+		// del_from_poll_fds(poll_fds, i, poll_count);
+    }
+	_buffer_in.append(buffer, bytes_read);
+	if (_buffer_in.find("\r\n\r\n"))
+	{
+		std::cout << _buffer_in << std::endl;
+		if (parseRequest())
+		{
+			// _state = CLIENT_PROCESS;
+		}
+		// else
+		// {
+		// 	_bufferOut = _response.set_status(400);   
+		// 	_state = CLIENT_WRITE;
+		// }
+	}
+}
 int	Server::pollCreation(void)
 {
 	// Sonde les sockets prêtes (avec timeout de 2 secondes)
@@ -81,7 +146,8 @@ void	Server::socketServerCreation(void)
 	int bindReturnCode = bind(_socketFD,(struct sockaddr*)&_socketAddress, _socketAdressLength);
 	if (bindReturnCode == -1)
 	{
-		std::cerr << "(Serveur)echec liaison du socket" << std::endl;
+		perror("bind");
+		// std::cerr << "(Serveur)echec liaison du socket" << std::endl;
 		exit (1);
 	}
 	// 6.Écoute du port via la socket
@@ -115,17 +181,19 @@ void	Server::pollLoop(void)
 				// on s'arrête là et on continue la boucle
 				continue ;
             }
-			std::cout << "[" << _socketFD << "]" << "Ready for I/O operation\n" << std::endl;
+			// std::cout << "[" << _socketFD << "]" << "Ready for I/O operation\n" << std::endl;
            
             // La socket est prête à être lue !
-            if (_poll_fds[i].fd == _socketFD) {
+            if (_poll_fds[i].fd == _socketFD) 
+			{
                 // La socket est notre socket serveur qui écoute le port
                 accept_new_connection(_socketFD, _poll_fds, _socketAddress, _socketAdressLength);
             }
-            // else {
-            //     // La socket est une socket client, on va la lire
-            //     read_data_from_socket(i, &_poll_fds, _poll_fds.size(), _socketFD);
-            // }
+            else 
+			{
+				// La socket est une socket client, on va la lire
+				read_data_from_socket(_poll_fds[i].fd);
+            }
         }
     }
 }

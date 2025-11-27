@@ -192,7 +192,8 @@ void read_data_from_socket(int i, struct pollfd **poll_fds, int *poll_count, int
 }
 
 // Ajouter un nouveau descriptor de fichier au tableau de pollfd
-void add_to_poll_fds(struct pollfd *poll_fds[], int new_fd, int *poll_count, int *poll_size) {
+void add_to_poll_fds(struct pollfd *poll_fds[], int new_fd, int *poll_count, int *poll_size) 
+{
     // S'il n'y a pas assez de place, il faut réallouer le tableau de poll_fds
     if (*poll_count == *poll_size) {
         *poll_size *= 2; // Double la taille

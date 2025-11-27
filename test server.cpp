@@ -36,19 +36,19 @@ void read_data_from_socket(size_t i, std::vector<pollfd>& poll_fds)
         // del_from_poll_fds(poll_fds, i, poll_count);
     }
 	buffer_in.append(buffer, bytes_read);
-	if (buffer_in.find("\r\n\r\n"))
-	{
-		if (request.parse(buffer_in))
-		{
-			_state = CLIENT_PROCESS;
-		}
-		else
-		{
-			_bufferOut = _response.set_status(400);   
-			_state = CLIENT_WRITE;
-		}
-	}
-	break ;
+	// if (buffer_in.find("\r\n\r\n"))
+	// {
+	// 	if (request.parse(buffer_in))
+	// 	{
+	// 		_state = CLIENT_PROCESS;
+	// 	}
+	// 	else
+	// 	{
+	// 		_bufferOut = _response.set_status(400);   
+	// 		_state = CLIENT_WRITE;
+	// 	}
+	// }
+	// break ;
 }
 
 
