@@ -4,7 +4,7 @@
 #include <iomanip>
 #include <iostream>
 #include <netinet/in.h>
-#include "server.hpp"
+#include "Server.hpp"
 #include <unistd.h>
 #include <cstring>
 #include<vector>
@@ -55,7 +55,7 @@ void read_data_from_socket(size_t i, std::vector<pollfd>& poll_fds)
 void accept_new_connection(int server_socket, std::vector<pollfd>& poll_fds, struct sockaddr_in socketAddress, socklen_t socketAdressLength)
 {
 	(void)poll_fds;
-	char msg_to_send[BUFFER_SIZE];
+	char msg_to_send[BUFSIZ];
     int clientSocket = accept(server_socket,(struct sockaddr*)&socketAddress, &socketAdressLength);
 	if (clientSocket == -1)
 	{
@@ -177,8 +177,8 @@ int main (void)
 	// 	exit (1);
 	// }
 	// //On va utiliser la memoire tampon pour receptionner le message
-	// char buffer[BUFFER_SIZE] = {0};
-	// int reveivedBytes = recv(connectedSocketFD, buffer, BUFFER_SIZE, 0);
+	// char buffer[BUFSIZ] = {0};
+	// int reveivedBytes = recv(connectedSocketFD, buffer, BUFSIZ, 0);
 	// if (reveivedBytes == -1)
 	// {
 	// 	std::cerr << "(Serveur)echec de reception du message du client" << std::endl;

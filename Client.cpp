@@ -4,7 +4,7 @@
 #include <iomanip>
 #include <iostream>
 #include <netinet/in.h>
-#include "client.hpp"
+#include "Client.hpp"
 #include <unistd.h>
 #include <cstring>
 #include <arpa/inet.h>
@@ -43,8 +43,8 @@ int main (void)
 		std::cerr << "(Client)echec de l'envoi du message au serveur" << std::endl;
 		exit (1);
 	}
-	char buffer[BUFFER_SIZE] = {0};
-	int reveivedBytes = recv(socketFD, buffer, BUFFER_SIZE, 0);
+	char buffer[BUFSIZ] = {0};
+	int reveivedBytes = recv(socketFD, buffer, BUFSIZ, 0);
 	if (reveivedBytes == -1)
 	{
 		std::cerr << "(Client)echec de reception du message du serveur" << std::endl;
