@@ -39,7 +39,10 @@ bool Server::parseRequest()
 	if (_httpVersion != "HTTP/1.1")
 		return (false);
 	size_t q_pos = _uri.find("?");
-	
+	if (q_pos != std::string::npos)
+		_query = _uri.substr(q_pos + 1);
+		_uri = _uri.substr(0, q_pos);
+
 	pos = _buffer_in.find("\n");
 	headers = _buffer_in.substr(pos + 1);
 	std::istringstream h(headers);

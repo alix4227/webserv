@@ -46,6 +46,7 @@ class Server
 	std::string _uri;
 	std::string _httpVersion;
 	std::string _body;
+	std::string _query;
 	std::map<std::string, std::string>_headers;
 };
 
