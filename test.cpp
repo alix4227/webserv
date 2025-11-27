@@ -211,7 +211,7 @@ void del_from_poll_fds(struct pollfd **poll_fds, int i, int *poll_count) {
 }
 
 /*le socket server c'est celui qui va permet d'etablir la connexion avec le client 
-il va accept et send un message pour dire aue la connexion a eu lieu */
+il va accept et send un message pour dire que la connexion a eu lieu */
 
 /*les sockets client vont recuperer les messages envoyes par les clients et les afficher et send un message pour dire
 qu'il a ete bien recu*/
