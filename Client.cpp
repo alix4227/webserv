@@ -7,6 +7,7 @@
 #include "Client.hpp"
 #include <unistd.h>
 #include <cstring>
+#include <cstdio>
 #include <arpa/inet.h>
 int main (void)
 {

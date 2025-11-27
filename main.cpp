@@ -4,5 +4,5 @@
 int main(void)
 {
 	Server Server;
-	pollLoop();
+	Server.pollLoop();
 }

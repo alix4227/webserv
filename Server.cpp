@@ -3,7 +3,7 @@ Server::Server()
 {
 	// 1. Créer la socket
 	//SOCK STREAM c'est pour indiquer qu'on va utiliser le protocole TCP
-	int _socketFD = socket(AF_INET, SOCK_STREAM, 0);
+	_socketFD = socket(AF_INET, SOCK_STREAM, 0);
 	if (_socketFD == -1)
 	{
 		std::cerr << "(Serveur)echec initialisation du socket" << std::endl;
@@ -40,17 +40,18 @@ void Server::accept_new_connection(int server_socket, std::vector<pollfd>& poll_
 		return ;
 	}
 	fcntl(_clientSocket, F_SETFL, O_NONBLOCK);
-	add_to_poll_fds(poll_fds, client_fd, poll_count, poll_size);
-	// std::cout << "[Server] Accepted new connection on client socket " <<  clientSocket << std::endl;
-	// sprintf(msg_to_send, "Welcome. You are client fd [%d]\n", clientSocket);
-    // int status = send(clientSocket, msg_to_send, strlen(msg_to_send), 0);
-    // if (status == -1) 
-	// {
-	// 	std::cout << "[Server] Send error to client " << clientSocket << ": " << "message not send" << std::endl;
-	// 	return ;
-    // }
+	// add_to_poll_fds(poll_fds, client_fd, poll_count, poll_size);
+	std::cout << "[Server] Accepted new connection on client socket " <<  _clientSocket << std::endl;
+	sprintf(msg_to_send, "Welcome. You are client fd [%d]\n", _clientSocket);
+    int status = send(_clientSocket, msg_to_send, strlen(msg_to_send), 0);
+    if (status == -1) 
+	{
+		std::cout << "[Server] Send error to client " << _clientSocket << ": " << "message not send" << std::endl;
+		return ;
+    }
 
 }
+
 int	Server::pollCreation(void)
 {
 	// Sonde les sockets prêtes (avec timeout de 2 secondes)
@@ -71,6 +72,7 @@ int	Server::pollCreation(void)
 void	Server::socketServerCreation(void)
 {
 	// 4. Configure la socket
+	memset(&_socketAddress, 0, sizeof(_socketAddress));
 	_socketAddress.sin_family = AF_INET;//indique qu'on veut une adresse IPV4
 	_socketAddress.sin_port = htons(LISTENING_PORT); //on indique le port par lequel le serveur ecoute
 	_socketAddress.sin_addr.s_addr = htonl(INADDR_ANY); // on accepte n'importe quelle adresse de connexion
@@ -92,6 +94,7 @@ void	Server::socketServerCreation(void)
 
 void	Server::pollLoop(void)
 {
+	socketServerCreation();
 	//on cree un tableau de structure pollfd. Une structure pollfd par client.
 	pollfd p;
 	p.fd = _socketFD;
@@ -119,10 +122,10 @@ void	Server::pollLoop(void)
                 // La socket est notre socket serveur qui écoute le port
                 accept_new_connection(_socketFD, _poll_fds, _socketAddress, _socketAdressLength);
             }
-            else {
-                // La socket est une socket client, on va la lire
-                read_data_from_socket(i, &_poll_fds, _poll_fds.size(), _socketFD);
-            }
+            // else {
+            //     // La socket est une socket client, on va la lire
+            //     read_data_from_socket(i, &_poll_fds, _poll_fds.size(), _socketFD);
+            // }
         }
     }
 }
