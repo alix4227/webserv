@@ -23,6 +23,122 @@ Server::~Server()
 {
 	
 }
+std::string Server::getStatusMessage(size_t code) 
+{
+    switch (code) 
+	{
+        case 200: return "OK";
+        case 201: return "Created";
+        case 301: return "Moved Permanently";
+        case 302: return "Found";
+        case 400: return "Bad Request";
+        case 404: return "Not Found";
+        case 405: return "Method Not Allowed";
+        case 413: return "Payload Too Large";
+        case 500: return "Internal Server Error";
+        case 504: return "Gateway Timeout";
+        default: return "Unknown";
+    }
+}
+
+std::string Server::getContentType(std::string _uri)
+{
+	if (_uri.find(".html") != std::string::npos)
+		return ("text/html");
+	else if (_uri.find(".css") != std::string::npos)
+		return ("text/css");
+	else if (_uri.find(".png") != std::string::npos)
+		return ("image/png");
+	else if (_uri.find(".jpg") != std::string::npos || _uri.find(".jpeg") != std::string::npos)
+		return ("image/jpeg");
+	else
+		return ("text/plain");
+}
+void Server::sendResponse(void)
+{
+	int status = send(_clientSocket, _response.c_str(), strlen(_response.c_str()), 0);
+    if (status == -1) {
+        fprintf(stderr, "[Server] Send error to client %d: %s\n", _clientSocket, strerror(errno));
+    }
+}
+void Server::getResponse(void)
+{
+	std::ostringstream file;
+	file << _httpVersion << " " << _status << " " << getStatusMessage(_status) << "\r\n";
+	std::map<std::string, std::string>headers;
+	headers["Content-Type"] = getContentType(_uri);
+	std::ostringstream contentLength;
+    contentLength << _contentSize;
+	headers["Content-Length"] = contentLength.str();
+	headers["Connection"] = "close";
+	// permet d'obtenir la date
+    time_t now = time(0);
+    char* dt = ctime(&now);
+    headers["Date"] = std::string(dt);
+	for (std::map<std::string, std::string>::iterator it = headers.begin(); it != headers.end(); ++it)
+	{
+		file << it->first << ": " << it->second << "\r\n"; 
+	}
+	file << "\r\n";
+	file << _content;
+	_response = file.str();
+}
+void Server::handleGetMethod(void)
+{
+	// MODIFICATION: Ajout de la redirection "/" vers "/index.html"
+	if (_uri == "/")
+		_uri = "/index.html";
+	
+	std::string path = "./www" + _uri;
+	// MODIFICATION: Ajout de log pour debug
+	std::cout << "[Server] Trying to open: " << path << std::endl;
+	
+	if (path.find("..") != std::string::npos)
+	{
+		// MODIFICATION: Envoyer une vraie réponse 403 au lieu de return vide
+		_status = 403;
+		_content = "<html><body><h1>403 Forbidden</h1></body></html>";
+		_contentSize = _content.size();
+		getResponse();
+		return ;
+	}
+	std::ifstream file(path.c_str(), std::ios::binary);
+	if (!file.is_open())
+	{
+		// MODIFICATION: Envoyer une vraie réponse 404 au lieu de return vide
+		_status = 404;
+		_content = "<html><body><h1>404 Not Found</h1></body></html>";
+		_contentSize = _content.size();
+		std::cout << "[Server] File not found: " << path << std::endl;
+		getResponse();
+		return ;
+	}
+	file.seekg(0, std::ios::end);
+	_contentSize = file.tellg();
+	file.seekg(0, std::ios::beg);
+	_content.resize(_contentSize);
+	file.read(&_content[0], _contentSize);
+	// MODIFICATION: Fermeture du fichier après lecture
+	file.close();
+	_status = 200;
+	// MODIFICATION: Ajout de log pour debug
+	std::cout << "[Server] File loaded: " << _contentSize << " bytes" << std::endl;
+	getResponse();
+}
+void Server::handleMethod(void)
+{
+	if (_method == "GET")
+		handleGetMethod();
+	// else if (_method == "POST")
+	// {
+
+	// }
+	// else
+	// {
+
+	// }
+	sendResponse();
+}
 bool Server::parseRequest()
 {
 	size_t pos = 0;
@@ -44,8 +160,8 @@ bool Server::parseRequest()
 		_query = _uri.substr(q_pos + 1);
 		_uri = _uri.substr(0, q_pos);
 	}
-	pos = _buffer_in.find("\n");
-	headers = _buffer_in.substr(pos + 1);
+	pos = _buffer_in.find("\r\n");
+	headers = _buffer_in.substr(pos + 2);
 	std::istringstream h(headers);
 	while (getline(h, line))
 	{
@@ -69,31 +185,27 @@ void Server::accept_new_connection(int server_socket, std::vector<pollfd>& poll_
 	struct sockaddr_in& socketAddress, socklen_t& socketAdressLength)
 {
 	(void)poll_fds;
-	char msg_to_send[BUFSIZ];
+	// MODIFICATION: Suppression du message de bienvenue non-HTTP
     _clientSocket = accept(server_socket,(struct sockaddr*)&socketAddress, &socketAdressLength);
 	if (_clientSocket == -1)
 	{
 		 if (errno == EAGAIN || errno == EWOULDBLOCK)
-            return;  // Pas de connexion disponible
+            return;
 		std::cerr << "(Serveur)echec d'etablissement de la connexion" << std::endl;
 		return ;
 	}
 	fcntl(_clientSocket, F_SETFL, O_NONBLOCK);
 	add_to_poll_fds();
 	std::cout << "[Server] Accepted new connection on client socket " <<  _clientSocket << std::endl;
-	sprintf(msg_to_send, "Welcome. You are client fd [%d]\n", _clientSocket);
-    int status = send(_clientSocket, msg_to_send, strlen(msg_to_send), 0);
-    if (status == -1) 
-	{
-		std::cout << "[Server] Send error to client " << _clientSocket << ": " << "message not send" << std::endl;
-		return ;
-    }
-
+	// MODIFICATION: Suppression de sprintf et send du message de bienvenue
 }
 void Server::read_data_from_socket(int Socket)
 {
 	char buffer[BUFSIZ];
     int bytes_read;
+	
+	// MODIFICATION: Sauvegarder le socket client pour sendResponse
+	_clientSocket = Socket;
 	
     memset(&buffer, '\0', sizeof buffer);
     bytes_read = recv(Socket, buffer, BUFSIZ, 0);
@@ -103,22 +215,30 @@ void Server::read_data_from_socket(int Socket)
 			printf("[%d] Client socket closed connection.\n", Socket);
 		else 
 			fprintf(stderr, "[Server] Recv error: %s\n", strerror(errno));
-		// _state = CLIENT_CLOSE;//FERME LE SOCKET
-		// del_from_poll_fds(poll_fds, i, poll_count);
+		// MODIFICATION: Fermer le socket en cas d'erreur
+		close(Socket);
+		return;
     }
 	_buffer_in.append(buffer, bytes_read);
-	if (_buffer_in.find("\r\n\r\n"))
+	if (_buffer_in.find("\r\n\r\n") != std::string::npos)
 	{
-		std::cout << _buffer_in << std::endl;
+		// MODIFICATION: Amélioration du log
+		std::cout << "[Server] Received:\n" << _buffer_in << std::endl;
 		if (parseRequest())
 		{
-			std::cout << "true" << std::endl;
+			handleMethod();
 		}
-		// else
-		// {
-		// 	_bufferOut = _response.set_status(400);   
-		// 	_state = CLIENT_WRITE;
-		// }
+		// MODIFICATION: Décommenter et gérer le cas d'erreur de parsing
+		else
+		{
+			std::cout << "[Server] Parse error - sending 400" << std::endl;
+			_status = 400;
+			_content = "<html><body><h1>400 Bad Request</h1></body></html>";
+			_contentSize = _content.size();
+			getResponse();
+			sendResponse();
+		}
+		_buffer_in.clear();
 	}
 }
 int	Server::pollCreation(void)

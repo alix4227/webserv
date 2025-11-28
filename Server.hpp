@@ -1,7 +1,7 @@
 #ifndef SERVER_HPP
 #define SERVER_HPP
 
-#define LISTENING_PORT 8083
+#define LISTENING_PORT 8084
 #define PENDING_QUEUE_MAXLENGTH 1000000 // nombre max de clients qui seront en attente
 
 #include <sys/socket.h>
@@ -18,6 +18,7 @@
 #include <cstdlib>
 #include <fcntl.h>
 #include <map>
+#include <fstream>
 #include <sstream>
 #include <sys/poll.h>
 
@@ -34,6 +35,12 @@ class Server
 	void add_to_poll_fds(void);
 	void read_data_from_socket(int Socket);
 	bool parseRequest();
+	void handleMethod();
+	void handleGetMethod();
+	void sendResponse();
+	void getResponse(void);
+	std::string getStatusMessage(size_t code);
+	std::string getContentType(std::string _uri);
 
 	private:
 	int _socketFD;
@@ -47,7 +54,11 @@ class Server
 	std::string _httpVersion;
 	std::string _body;
 	std::string _query;
+	std::string _content;
+	std::string _response;
+	size_t _contentSize;
 	std::map<std::string, std::string>_headers;
+	size_t _status;
 };
 
 #endif
