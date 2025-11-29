@@ -44,9 +44,9 @@ std::string Server::getStatusMessage(size_t code)
 std::string Server::getContentType(std::string _uri)
 {
 	if (_uri.find(".html") != std::string::npos)
-		return ("text/html");
+		return ("text/html; charset=utf-8");
 	else if (_uri.find(".css") != std::string::npos)
-		return ("text/css");
+		return ("text/css; charset=utf-8");
 	else if (_uri.find(".png") != std::string::npos)
 		return ("image/png");
 	else if (_uri.find(".jpg") != std::string::npos || _uri.find(".jpeg") != std::string::npos)
@@ -54,6 +54,7 @@ std::string Server::getContentType(std::string _uri)
 	else
 		return ("text/plain");
 }
+
 void Server::sendResponse(void)
 {
 	int status = send(_clientSocket, _response.c_str(), strlen(_response.c_str()), 0);
@@ -61,6 +62,7 @@ void Server::sendResponse(void)
         fprintf(stderr, "[Server] Send error to client %d: %s\n", _clientSocket, strerror(errno));
     }
 }
+
 void Server::getResponse(void)
 {
 	std::ostringstream file;
@@ -83,19 +85,47 @@ void Server::getResponse(void)
 	file << _content;
 	_response = file.str();
 }
+
+void Server::handlePostMethod()
+{
+	std::string path = "./www/uploads/" + getFilename();
+	std::ofstream uploadfile(path, std::ios::binary);
+	if (uploadfile.is_open())
+	{
+		uploadfile.write(_body.c_str(),_body.length());//j'ecris le contenu du body dans le fichier
+		_status = 201;
+		_content = "<html><body><h1>201 File Created</h1><p>Upload successful</p></body></html>";
+		_contentSize = _content.size();
+	}
+	else
+	{
+		_status = 500;
+		_content = "<html><body><h1>500 Upload Failed</h1></body></html>";
+		_contentSize = _content.size();
+	}
+
+	std::ostringstream file;
+	file << _httpVersion << " " << _status << " " << getStatusMessage(_status) << "\r\n";
+	std::map<std::string, std::string>headers;
+	
+	file << "\r\n";
+	file << _content;
+	_response = file.str();
+
+}
+
 void Server::handleGetMethod(void)
 {
-	// MODIFICATION: Ajout de la redirection "/" vers "/index.html"
+	//redirection "/" vers "/index.html"
 	if (_uri == "/")
 		_uri = "/index.html";
 	
 	std::string path = "./www" + _uri;
-	// MODIFICATION: Ajout de log pour debug
+
 	std::cout << "[Server] Trying to open: " << path << std::endl;
 	
 	if (path.find("..") != std::string::npos)
 	{
-		// MODIFICATION: Envoyer une vraie réponse 403 au lieu de return vide
 		_status = 403;
 		_content = "<html><body><h1>403 Forbidden</h1></body></html>";
 		_contentSize = _content.size();
@@ -105,7 +135,6 @@ void Server::handleGetMethod(void)
 	std::ifstream file(path.c_str(), std::ios::binary);
 	if (!file.is_open())
 	{
-		// MODIFICATION: Envoyer une vraie réponse 404 au lieu de return vide
 		_status = 404;
 		_content = "<html><body><h1>404 Not Found</h1></body></html>";
 		_contentSize = _content.size();
@@ -118,32 +147,31 @@ void Server::handleGetMethod(void)
 	file.seekg(0, std::ios::beg);
 	_content.resize(_contentSize);
 	file.read(&_content[0], _contentSize);
-	// MODIFICATION: Fermeture du fichier après lecture
 	file.close();
 	_status = 200;
-	// MODIFICATION: Ajout de log pour debug
 	std::cout << "[Server] File loaded: " << _contentSize << " bytes" << std::endl;
 	getResponse();
 }
+
 void Server::handleMethod(void)
 {
 	if (_method == "GET")
 		handleGetMethod();
-	// else if (_method == "POST")
-	// {
-
-	// }
+	else if (_method == "POST")
+		handlePostMethod();
 	// else
 	// {
 
 	// }
 	sendResponse();
 }
+
 bool Server::parseRequest()
 {
 	size_t pos = 0;
 	std::string key;
 	std::string value;
+	std::string value2;
 	std::string body;
 	std::string headers;
 	std::string line;
@@ -166,13 +194,25 @@ bool Server::parseRequest()
 	while (getline(h, line))
 	{
 		std::istringstream map(line);
+		if (line.find(";") != std::string::npos)
+		{
+			map >> key >> value >> value2;
+			_headers[key] = value + " " + value2;
+		}
 		map >> key >> value;
 		_headers[key] = value;
 	}
 	pos = _buffer_in.find("\r\n\r\n");
 	_body = _buffer_in.substr(pos + 4);
+	if (_method == "POST" && _headers.find("Content-Length") != _headers.end())
+    {
+    	size_t expected = atoi(_headers["Content-Length"].c_str());
+        if (_body.length() < expected)
+        	return (false);
+    }
 	return (true);
 }
+
 void Server::add_to_poll_fds()
 {
 	pollfd p;
@@ -181,11 +221,11 @@ void Server::add_to_poll_fds()
 	_poll_fds.push_back(p);
  
 }
+
 void Server::accept_new_connection(int server_socket, std::vector<pollfd>& poll_fds,
 	struct sockaddr_in& socketAddress, socklen_t& socketAdressLength)
 {
 	(void)poll_fds;
-	// MODIFICATION: Suppression du message de bienvenue non-HTTP
     _clientSocket = accept(server_socket,(struct sockaddr*)&socketAddress, &socketAdressLength);
 	if (_clientSocket == -1)
 	{
@@ -197,14 +237,14 @@ void Server::accept_new_connection(int server_socket, std::vector<pollfd>& poll_
 	fcntl(_clientSocket, F_SETFL, O_NONBLOCK);
 	add_to_poll_fds();
 	std::cout << "[Server] Accepted new connection on client socket " <<  _clientSocket << std::endl;
-	// MODIFICATION: Suppression de sprintf et send du message de bienvenue
 }
+
 void Server::read_data_from_socket(int Socket)
 {
 	char buffer[BUFSIZ];
     int bytes_read;
 	
-	// MODIFICATION: Sauvegarder le socket client pour sendResponse
+	//Sauvegarder le socket client pour sendResponse
 	_clientSocket = Socket;
 	
     memset(&buffer, '\0', sizeof buffer);
@@ -215,20 +255,18 @@ void Server::read_data_from_socket(int Socket)
 			printf("[%d] Client socket closed connection.\n", Socket);
 		else 
 			fprintf(stderr, "[Server] Recv error: %s\n", strerror(errno));
-		// MODIFICATION: Fermer le socket en cas d'erreur
 		close(Socket);
 		return;
     }
 	_buffer_in.append(buffer, bytes_read);
 	if (_buffer_in.find("\r\n\r\n") != std::string::npos)
 	{
-		// MODIFICATION: Amélioration du log
-		std::cout << "[Server] Received:\n" << _buffer_in << std::endl;
+		std::cout <<_buffer_in  << std::endl;
 		if (parseRequest())
 		{
 			handleMethod();
+			_buffer_in.clear();
 		}
-		// MODIFICATION: Décommenter et gérer le cas d'erreur de parsing
 		else
 		{
 			std::cout << "[Server] Parse error - sending 400" << std::endl;
@@ -237,10 +275,11 @@ void Server::read_data_from_socket(int Socket)
 			_contentSize = _content.size();
 			getResponse();
 			sendResponse();
+			_buffer_in.clear();
 		}
-		_buffer_in.clear();
 	}
 }
+
 int	Server::pollCreation(void)
 {
 	// Sonde les sockets prêtes (avec timeout de 2 secondes)
@@ -253,7 +292,7 @@ int	Server::pollCreation(void)
     else if (status == 0) 
 	{
         // Aucun descipteur de fichier de socket n'est prêt
-        std::cout << "En attente de nouvelles connexions..." << std::endl;
+        // std::cout << "En attente de nouvelles connexions..." << std::endl;
 		return (0);
     }
 	return (1);

@@ -37,6 +37,7 @@ class Server
 	bool parseRequest();
 	void handleMethod();
 	void handleGetMethod();
+	void handlePostMethod();
 	void sendResponse();
 	void getResponse(void);
 	std::string getStatusMessage(size_t code);
