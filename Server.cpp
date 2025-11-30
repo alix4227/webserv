@@ -100,8 +100,7 @@ std::string Server::getFileName(void)
 
 void Server::handlePostMethod()
 {
-	std::string path = "./www/" + getFileName();
-	std::cout << getFileName() << std::endl;
+	std::string path = "./www/uploads/" + getFileName();
 	std::ofstream uploadfile(path.c_str(), std::ios::binary);
 	size_t pos = _body.find("Content-Type:");
 	if (pos == std::string::npos) 
@@ -116,17 +115,19 @@ void Server::handlePostMethod()
 	if (uploadfile.is_open())
 	{
 		uploadfile.write(_body.c_str(),_body.length());//j'ecris le contenu du body dans le fichier
-		_status = 201;
-		_content = "<html><body><h1>201 File Created</h1><p>Upload successful</p></body></html>";
-		_contentSize = _content.size();
+		uploadfile.close();
+		if (!uploadfile.fail())
+        {
+            _status = 201;
+            _content = "<html><body><h1>201 File Created</h1><p>Upload successful</p></body></html>";
+        }
+        else
+        {
+            _status = 500;
+            _content = "<html><body><h1>500 Write Failed</h1></body></html>";
+        }
+        _contentSize = _content.size();
 	}
-	else
-	{
-		_status = 500;
-		_content = "<html><body><h1>500 Upload Failed</h1></body></html>";
-		_contentSize = _content.size();
-	}
-
 	std::ostringstream file;
 	file << _httpVersion << " " << _status << " " << getStatusMessage(_status) << "\r\n";
 	file << "Content-Type: text/html\r\n";
