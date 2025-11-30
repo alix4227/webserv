@@ -51,6 +51,8 @@ std::string Server::getContentType(std::string uri)
 		return "text/html; charset=utf-8";
 	else if (ext == ".css")
 		return "text/css; charset=utf-8";
+	else if (_uri.find(".pdf") != std::string::npos)
+		return ("application/pdf");
 	else if (ext == ".js")
 		return "application/javascript";
 	else if (ext == ".png")
