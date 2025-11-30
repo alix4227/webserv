@@ -41,23 +41,35 @@ std::string Server::getStatusMessage(size_t code)
     }
 }
 
-std::string Server::getContentType(std::string _uri)
+std::string Server::getContentType(std::string uri)
 {
-	if (_uri.find(".html") != std::string::npos)
-		return ("text/html; charset=utf-8");
-	else if (_uri.find(".css") != std::string::npos)
-		return ("text/css; charset=utf-8");
-	else if (_uri.find(".png") != std::string::npos)
-		return ("image/png");
-	else if (_uri.find(".jpg") != std::string::npos || _uri.find(".jpeg") != std::string::npos)
-		return ("image/jpeg");
+	size_t pos = _uri.find_last_of('.');
+	if (pos == std::string::npos)
+		return "application/octet-stream";
+	std::string ext = uri.substr(pos);
+	if (ext == ".html" || ext == ".htm")
+		return "text/html; charset=utf-8";
+	else if (ext == ".css")
+		return "text/css; charset=utf-8";
+	else if (ext == ".js")
+		return "application/javascript";
+	else if (ext == ".png")
+		return "image/png";
+	else if (ext == ".jpg" || ext == ".jpeg")
+		return "image/jpeg";
+	else if (ext == ".gif")
+		return "image/gif";
+	else if (ext == ".svg")
+		return "image/svg+xml";
+	else if (ext == ".ico")
+		return "image/x-icon";
 	else
-		return ("text/plain");
+		return "application/octet-stream";
 }
 
 void Server::sendResponse(void)
 {
-	int status = send(_clientSocket, _response.c_str(), strlen(_response.c_str()), 0);
+	int status = send(_clientSocket, _response.c_str(), _response.size(), 0);
     if (status == -1) {
         fprintf(stderr, "[Server] Send error to client %d: %s\n", _clientSocket, strerror(errno));
     }
@@ -67,23 +79,19 @@ void Server::getResponse(void)
 {
 	std::ostringstream file;
 	file << _httpVersion << " " << _status << " " << getStatusMessage(_status) << "\r\n";
-	std::map<std::string, std::string>headers;
-	headers["Content-Type"] = getContentType(_uri);
-	std::ostringstream contentLength;
-    contentLength << _contentSize;
-	headers["Content-Length"] = contentLength.str();
-	headers["Connection"] = "close";
-	// permet d'obtenir la date
-    time_t now = time(0);
-    char* dt = ctime(&now);
-    headers["Date"] = std::string(dt);
-	for (std::map<std::string, std::string>::iterator it = headers.begin(); it != headers.end(); ++it)
-	{
-		file << it->first << ": " << it->second << "\r\n"; 
-	}
+	file << "Content-Type: " << getContentType(_uri) << "\r\n";
+	file << "Content-Length: " << _contentSize << "\r\n";
+	file << "Connection: close\r\n";
+	time_t now = time(0);
+	char* dt = ctime(&now);
+	std::string dateStr(dt);
+	if (!dateStr.empty() && dateStr[dateStr.length()-1] == '\n')// Retirer le \n final de ctime
+		dateStr.erase(dateStr.length()-1);
+	file << "Date: " << dateStr << "\r\n";
 	file << "\r\n";
-	file << _content;
+	_response.clear();
 	_response = file.str();
+	_response.append(_content);//on rajoute le contenu du fichier
 }
 
 std::string Server::getFileName(void)
