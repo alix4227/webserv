@@ -1,7 +1,7 @@
 #ifndef SERVER_HPP
 #define SERVER_HPP
 
-#define LISTENING_PORT 8084
+#define LISTENING_PORT 8083
 #define PENDING_QUEUE_MAXLENGTH 1000000 // nombre max de clients qui seront en attente
 
 #include <sys/socket.h>
@@ -42,6 +42,7 @@ class Server
 	void getResponse(void);
 	std::string getStatusMessage(size_t code);
 	std::string getContentType(std::string _uri);
+	std::string getFileName(void);
 
 	private:
 	int _socketFD;

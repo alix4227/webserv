@@ -86,10 +86,33 @@ void Server::getResponse(void)
 	_response = file.str();
 }
 
+std::string Server::getFileName(void)
+{
+    size_t pos = _body.find("filename=\"");
+    if (pos == std::string::npos) 
+        return ("");
+    pos += strlen("filename=\""); // Se placer après 'filename="'
+    size_t posEnd = _body.find("\"", pos); // Trouver le " de fermeture
+    if (posEnd == std::string::npos) 
+        return ("");
+    return (_body.substr(pos, posEnd - pos));
+}
+
 void Server::handlePostMethod()
 {
-	std::string path = "./www/uploads/" + getFilename();
-	std::ofstream uploadfile(path, std::ios::binary);
+	std::string path = "./www/" + getFileName();
+	std::cout << getFileName() << std::endl;
+	std::ofstream uploadfile(path.c_str(), std::ios::binary);
+	size_t pos = _body.find("Content-Type:");
+	if (pos == std::string::npos) 
+    	return;
+	_body = _body.substr(pos);
+	pos = _body.find("\r\n\r\n");
+	pos += 4;
+	size_t posEnd = _body.find("\r\n------");
+	if (posEnd == std::string::npos) 
+    	return;
+	_body = _body.substr(pos, posEnd - pos);
 	if (uploadfile.is_open())
 	{
 		uploadfile.write(_body.c_str(),_body.length());//j'ecris le contenu du body dans le fichier
@@ -106,12 +129,12 @@ void Server::handlePostMethod()
 
 	std::ostringstream file;
 	file << _httpVersion << " " << _status << " " << getStatusMessage(_status) << "\r\n";
-	std::map<std::string, std::string>headers;
-	
+	file << "Content-Type: text/html\r\n";
+	file << "Content-Length: " << _contentSize << "\r\n";
+	file << "Connection: close\r\n";
 	file << "\r\n";
 	file << _content;
 	_response = file.str();
-
 }
 
 void Server::handleGetMethod(void)
@@ -204,12 +227,12 @@ bool Server::parseRequest()
 	}
 	pos = _buffer_in.find("\r\n\r\n");
 	_body = _buffer_in.substr(pos + 4);
-	if (_method == "POST" && _headers.find("Content-Length") != _headers.end())
-    {
-    	size_t expected = atoi(_headers["Content-Length"].c_str());
-        if (_body.length() < expected)
-        	return (false);
-    }
+	if (_method == "POST")
+	{
+		if (_body.find("--\r\n") != std::string::npos)
+			return (true);
+		return (false);
+	}
 	return (true);
 }
 
@@ -261,22 +284,21 @@ void Server::read_data_from_socket(int Socket)
 	_buffer_in.append(buffer, bytes_read);
 	if (_buffer_in.find("\r\n\r\n") != std::string::npos)
 	{
-		std::cout <<_buffer_in  << std::endl;
 		if (parseRequest())
 		{
 			handleMethod();
 			_buffer_in.clear();
 		}
-		else
-		{
-			std::cout << "[Server] Parse error - sending 400" << std::endl;
-			_status = 400;
-			_content = "<html><body><h1>400 Bad Request</h1></body></html>";
-			_contentSize = _content.size();
-			getResponse();
-			sendResponse();
-			_buffer_in.clear();
-		}
+		// else
+		// {
+		// 	std::cout << "[Server] Parse error - sending 400" << std::endl;
+		// 	_status = 400;
+		// 	_content = "<html><body><h1>400 Bad Request</h1></body></html>";
+		// 	_contentSize = _content.size();
+		// 	getResponse();
+		// 	sendResponse();
+		// 	_buffer_in.clear();
+		// }
 	}
 }
 
