@@ -1,5 +1,6 @@
 #include "Server.hpp"
 
+
 Server::Server()
 {
 	// 1. Créer la socket
@@ -187,16 +188,60 @@ void Server::handleGetMethod(void)
 	getResponse();
 }
 
+void Server::handleDeleteMethod(void)
+{
+	std::string path = "./www" + _uri;
+	std::cout << "[Server] Trying to open: " << path << std::endl;
+	if (path.find("..") != std::string::npos)
+	{
+		_status = 403;
+		_content = "<html><body><h1>403 Forbidden</h1></body></html>";
+		_contentSize = _content.size();
+		getResponse();
+		return ;
+	}
+	std::ifstream file(path.c_str(), std::ios::binary);
+	if (!file.is_open())
+	{
+		file.close();
+		_status = 404;
+		_content = "<html><body><h1>404 Not Found</h1></body></html>";
+		_contentSize = _content.size();
+		std::cout << "[Server] File not found: " << path << std::endl;
+		getResponse();
+		return ;
+	}
+	file.close();
+	if (std::remove(path.c_str()) == 0) 
+	{
+		_status = 200;
+		_content = "<html><body><h1>File deleted successfully</h1></body></html>";
+	}
+    else 
+	{
+    	_status = 500;
+		_content = "<html><body><h1>500 Internal Server Error</h1></body></html>";
+		_contentSize = _content.size();
+		std::cout << "[Server] Error deleting file: " << strerror(errno) << std::endl;
+    }
+	getResponse();
+}
+
 void Server::handleMethod(void)
 {
 	if (_method == "GET")
 		handleGetMethod();
 	else if (_method == "POST")
 		handlePostMethod();
-	// else
-	// {
-
-	// }
+	else if (_method == "DELETE")
+        handleDeleteMethod();
+    else
+    {
+        _status = 405;
+        _content = "<html><body><h1>405 Method Not Allowed</h1></body></html>";
+        _contentSize = _content.size();
+        getResponse();
+    }
 	sendResponse();
 }
 
@@ -242,6 +287,13 @@ bool Server::parseRequest()
 	{
 		if (_body.find("--\r\n") != std::string::npos)
 			return (true);
+		// std::map<std::string, std::string>::iterator it = _headers.find("Content-Length:");
+		// if (it != _headers.end())
+		// {
+		// 	size_t content_length = atoi(it->second.c_str());
+		// 	if (_body.size() >= content_length)
+		// 		return (true);
+		// }
 		return (false);
 	}
 	return (true);
@@ -273,6 +325,120 @@ void Server::accept_new_connection(int server_socket, std::vector<pollfd>& poll_
 	std::cout << "[Server] Accepted new connection on client socket " <<  _clientSocket << std::endl;
 }
 
+std::string toUpper(const std::string& str) 
+{
+	std::string result = str;
+	for (size_t i = 0; i < result.length(); ++i) 
+		result[i] = std::toupper(static_cast<unsigned char>(result[i]));
+	return result;
+}
+
+void Server::getEnvp(std::vector<std::string>& env_strings)
+{
+	env_strings.push_back("REQUEST_METHOD=" + _method);
+	env_strings.push_back("QUERY_STRING=" + _query);
+	env_strings.push_back("SERVER_PROTOCOL=HTTP/1.1");
+	env_strings.push_back("SCRIPT_NAME=" + _uri);
+
+	if (_method == "POST") 
+	{
+        std::ostringstream oss;
+        oss << _body.size();
+        env_strings.push_back("CONTENT_LENGTH=" + oss.str());
+    }
+
+	std::map<std::string, std::string>::iterator it;
+	for (it = _headers.begin(); it != _headers.end(); ++it) 
+	{
+		std::string env_var = "HTTP_" + toUpper(it->first);
+		std::replace(env_var.begin(), env_var.end(), '-', '_');
+		env_strings.push_back(env_var + "=" + it->second);
+	}
+}
+
+void	Server::handleCgi(void)
+{
+	std::string path = "." +_uri;
+	std::ifstream test(path.c_str());
+    if (!test.is_open()) 
+	{
+        std::cerr << "[CGI] File not found: " << path << std::endl;
+        _status = 404;
+        _content = "<html><body><h1>404 CGI Script Not Found</h1></body></html>";
+        _contentSize = _content.size();
+        getResponse();
+        sendResponse();
+        return;
+    }
+    test.close();
+
+	char* argv[] = {const_cast<char*>(path.c_str()), NULL};
+	std::vector<std::string> env_strings;
+	getEnvp(env_strings);
+	std::vector<char*> envp;
+    for (size_t i = 0; i < env_strings.size(); ++i) 
+        envp.push_back(const_cast<char*>(env_strings[i].c_str()));
+    envp.push_back(NULL);
+	int pipe_fd[2];
+	size_t n = 0;
+	int status2;
+	char buffer[BUFSIZ];
+	if (pipe(pipe_fd) == -1) 
+	{
+        perror("pipe");
+        return;
+    }
+	pid_t pid = fork();
+	if (pid == -1) 
+	{
+        perror("fork");
+        close(pipe_fd[0]);
+        close(pipe_fd[1]);
+        return;
+    }
+	if (pid == 0)
+	{
+		close(pipe_fd[0]);
+		dup2(pipe_fd[1], STDOUT_FILENO);
+		close(pipe_fd[1]);
+		execve(path.c_str(), argv, envp.data());
+		perror("execve");
+		exit(1) ;
+	}
+	close(pipe_fd[1]);
+	std::string cgi_output;
+	while ((n = read(pipe_fd[0], buffer, BUFSIZ)) > 0)
+		cgi_output.append(buffer, n);
+	close(pipe_fd[0]);
+	if (waitpid(pid, &status2, 0) == -1)
+	{
+		perror("waitpid");
+		return ;
+	}
+	size_t header_end = cgi_output.find("\r\n\r\n") + 4;
+	if (header_end == std::string::npos)
+	{
+		_status = 500;
+		_content = "<html><body><h1>500 Invalid CGI Output</h1></body></html>";
+		_contentSize = _content.size();
+		getResponse();
+		sendResponse();
+		return;
+	}
+	size_t pos = cgi_output.find("\r\n");
+	std::string contentType = cgi_output.substr(0, pos);
+	std::string body = cgi_output.substr(header_end);
+	std::ostringstream response;
+	response << "HTTP/1.1 200 OK\r\n";
+	response << contentType << "\r\n";
+	response << "Content-Length: " << body.size() << "\r\n";
+	response << "Connection: close\r\n";
+	response << "\r\n";
+	response << body;
+	_response = response.str();
+	sendResponse();
+}
+
 void Server::read_data_from_socket(int Socket)
 {
 	char buffer[BUFSIZ];
@@ -290,6 +456,14 @@ void Server::read_data_from_socket(int Socket)
 		else 
 			fprintf(stderr, "[Server] Recv error: %s\n", strerror(errno));
 		close(Socket);
+		for (size_t i = 0; i < _poll_fds.size(); ++i) 
+        {
+            if (_poll_fds[i].fd == Socket) 
+            {
+                _poll_fds.erase(_poll_fds.begin() + i);
+                break;
+            }
+        }
 		return;
     }
 	_buffer_in.append(buffer, bytes_read);
@@ -297,8 +471,20 @@ void Server::read_data_from_socket(int Socket)
 	{
 		if (parseRequest())
 		{
-			handleMethod();
+			if (_uri.find("/cgi-bin/") != std::string::npos)
+				handleCgi();
+			else
+				handleMethod();
 			_buffer_in.clear();
+			close(Socket);
+            for (size_t i = 0; i < _poll_fds.size(); ++i) 
+            {
+                if (_poll_fds[i].fd == Socket) 
+                {
+                    _poll_fds.erase(_poll_fds.begin() + i);
+                    break;
+                }
+            }
 		}
 		// else
 		// {

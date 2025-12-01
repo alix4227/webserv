@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Test DELETE</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            max-width: 600px; 
+            margin: 50px auto;
+            padding: 20px;
+        }
+        button {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        button:hover { background: #c82333; }
+        #result {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 5px;
+            display: none;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+    </style>
+</head>
+<body>
+    <h1>🗑️ Test de suppression</h1>
+    
+    <p>Clique sur un bouton pour supprimer un fichier :</p>
+    
+    <button onclick="deleteFile('/uploads/test.txt')">
+        Supprimer test.txt
+    </button><br>
+    
+    <button onclick="deleteFile('/uploads/image.png')">
+        Supprimer image.png
+    </button><br>
+    
+    <button onclick="deleteFile('/uploads/document.pdf')">
+        Supprimer document.pdf
+    </button><br>
+    
+    <button onclick="deleteFile('/inexistant.txt')" style="background: #6c757d;">
+        Tester 404 (fichier inexistant)
+    </button><br>
+    
+    <button onclick="deleteFile('/../etc/passwd')" style="background: #6c757d;">
+        Tester 403 (path traversal)
+    </button>
+    
+    <div id="result"></div>
+    
+    <h2>📋 Logs de la console</h2>
+    <p style="color: #666;">Ouvre la console (F12) pour voir les détails techniques</p>
+    
+    <script>
+        function deleteFile(filepath) {
+            console.log('═══════════════════════════════════');
+            console.log('🚀 Envoi de la requête DELETE');
+            console.log('Path:', filepath);
+            console.log('Time:', new Date().toLocaleTimeString());
+            
+            const resultDiv = document.getElementById('result');
+            resultDiv.style.display = 'block';
+            resultDiv.className = 'info';
+            resultDiv.innerHTML = '⏳ Suppression en cours de: <strong>' + filepath + '</strong>...';
+            
+            fetch(filepath, {
+                method: 'DELETE'
+            })
+            .then(response => {
+                console.log('───────────────────────────────────');
+                console.log('📥 Réponse reçue');
+                console.log('Status:', response.status);
+                console.log('Status Text:', response.statusText);
+                console.log('Headers:');
+                response.headers.forEach((value, key) => {
+                    console.log('  ' + key + ':', value);
+                });
+                
+                // Afficher le résultat dans la page
+                if (response.status === 204 || response.status === 200) {
+                    resultDiv.className = 'success';
+                    resultDiv.innerHTML = '✅ <strong>SUCCÈS!</strong><br>' +
+                                         'Fichier supprimé: <code>' + filepath + '</code><br>' +
+                                         'Status: ' + response.status;
+                    console.log('✅ Fichier supprimé avec succès!');
+                } 
+                else if (response.status === 404) {
+                    resultDiv.className = 'error';
+                    resultDiv.innerHTML = '❌ <strong>ERREUR 404</strong><br>' +
+                                         'Fichier introuvable: <code>' + filepath + '</code>';
+                    console.log('❌ 404 Not Found');
+                } 
+                else if (response.status === 403) {
+                    resultDiv.className = 'error';
+                    resultDiv.innerHTML = '🚫 <strong>ERREUR 403</strong><br>' +
+                                         'Accès interdit: <code>' + filepath + '</code>';
+                    console.log('🚫 403 Forbidden');
+                } 
+                else if (response.status === 500) {
+                    resultDiv.className = 'error';
+                    resultDiv.innerHTML = '💥 <strong>ERREUR 500</strong><br>' +
+                                         'Erreur serveur lors de la suppression';
+                    console.log('💥 500 Internal Server Error');
+                } 
+                else {
+                    resultDiv.className = 'error';
+                    resultDiv.innerHTML = '⚠️ <strong>Code inconnu: ' + response.status + '</strong>';
+                    console.log('⚠️ Status code:', response.status);
+                }
+                
+                console.log('═══════════════════════════════════\n');
+                
+                return response.text();
+            })
+            .then(body => {
+                if (body) {
+                    console.log('📄 Body de la réponse:');
+                    console.log(body);
+                }
+            })
+            .catch(error => {
+                console.error('💀 ERREUR RÉSEAU:', error);
+                resultDiv.className = 'error';
+                resultDiv.innerHTML = '💀 <strong>ERREUR RÉSEAU</strong><br>' + error.message;
+                console.log('═══════════════════════════════════\n');
+            });
+        }
+    </script>
+</body>
+</html>

@@ -1,7 +1,7 @@
 #ifndef SERVER_HPP
 #define SERVER_HPP
 
-#define LISTENING_PORT 8083
+#define LISTENING_PORT 8082
 #define PENDING_QUEUE_MAXLENGTH 1000000 // nombre max de clients qui seront en attente
 
 #include <sys/socket.h>
@@ -21,28 +21,33 @@
 #include <fstream>
 #include <sstream>
 #include <sys/poll.h>
+# include <sys/wait.h>
+#include <algorithm>
 
 class Server
 {
 	public:
 	Server();
 	~Server();
-	void socketServerCreation(void);
-	void pollLoop(void);
-	int pollCreation(void);
-	void accept_new_connection(int server_socket, std::vector<pollfd>& poll_fds,
-	struct sockaddr_in& socketAddress, socklen_t& socketAdressLength);
-	void add_to_poll_fds(void);
-	void read_data_from_socket(int Socket);
-	bool parseRequest();
-	void handleMethod();
-	void handleGetMethod();
-	void handlePostMethod();
-	void sendResponse();
-	void getResponse(void);
-	std::string getStatusMessage(size_t code);
-	std::string getContentType(std::string _uri);
-	std::string getFileName(void);
+	void		socketServerCreation(void);
+	void		pollLoop(void);
+	int			pollCreation(void);
+	void		accept_new_connection(int server_socket, std::vector<pollfd>& poll_fds,
+					struct sockaddr_in& socketAddress, socklen_t& socketAdressLength);
+	void		add_to_poll_fds(void);
+	void		read_data_from_socket(int Socket);
+	bool		parseRequest();
+	void		handleMethod();
+	void		handleGetMethod();
+	void		handlePostMethod();
+	void		handleDeleteMethod(void);
+	void		sendResponse();
+	void		getResponse(void);
+	void		handleCgi(void);
+	std::string	getStatusMessage(size_t code);
+	std::string	getContentType(std::string _uri);
+	std::string	getFileName(void);
+	void		getEnvp(std::vector<std::string>& env_strings);
 
 	private:
 	int _socketFD;
