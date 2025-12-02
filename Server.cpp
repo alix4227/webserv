@@ -248,7 +248,7 @@ void Server::handleMethod(void)
 bool Server::parseRequest()
 {
 	size_t pos = 0;
-	size_t posEnd = 0;
+	// size_t posEnd = 0;
 	std::string key;
 	std::string value;
 	std::string value2;
@@ -269,18 +269,27 @@ bool Server::parseRequest()
 		_uri = _uri.substr(0, q_pos);
 	}
 	pos = _buffer_in.find("\r\n");
-	headers = _buffer_in.substr(pos + 2);
+	size_t header_end = _buffer_in.find("\r\n\r\n");
+	if (header_end == std::string::npos)
+		return (false);
+	headers = _buffer_in.substr(pos + 2, header_end - pos - 2);
 	std::istringstream h(headers);
 	while (getline(h, line))
 	{
+		// Retirer le \r si présent à la fin de la ligne
+		if (!line.empty() && line[line.length() - 1] == '\r')
+			line.erase(line.length() - 1);
+		if (line.empty())
+			break;
 		pos = line.find(":");
 		if (pos == std::string::npos)
 			continue;
-		posEnd = line.find("\r");
-		if (posEnd == std::string::npos)
-			posEnd = line.length();
 		key = line.substr(0, pos);
-		value = line.substr(pos + 2, posEnd - pos - 2);
+		// Trouver le début de la valeur (après ": ")
+		size_t value_start = pos + 1;
+		while (value_start < line.length() && line[value_start] == ' ')//parser les espaces apres ":"
+			value_start++;
+		value = line.substr(value_start);
 		_headers[key] = value;
 	}
 	pos = _buffer_in.find("\r\n\r\n");
