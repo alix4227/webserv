@@ -115,29 +115,29 @@ void Server::handlePostMethod()
 	std::ofstream uploadfile(path.c_str(), std::ios::binary);
 	size_t pos = _body.find("Content-Type:");
 	if (pos == std::string::npos) 
-    	return;
+		return;
 	_body = _body.substr(pos);
 	pos = _body.find("\r\n\r\n");
 	pos += 4;
 	size_t posEnd = _body.find("\r\n------");
 	if (posEnd == std::string::npos) 
-    	return;
+		return;
 	_body = _body.substr(pos, posEnd - pos);
 	if (uploadfile.is_open())
 	{
 		uploadfile.write(_body.c_str(),_body.length());//j'ecris le contenu du body dans le fichier
 		uploadfile.close();
 		if (!uploadfile.fail())
-        {
-            _status = 201;
-            _content = "<html><body><h1>201 File Created</h1><p>Upload successful</p></body></html>";
-        }
-        else
-        {
-            _status = 500;
-            _content = "<html><body><h1>500 Write Failed</h1></body></html>";
-        }
-        _contentSize = _content.size();
+		{
+			_status = 201;
+			_content = "<html><body><h1>201 File Created</h1><p>Upload successful</p></body></html>";
+		}
+		else
+		{
+			_status = 500;
+			_content = "<html><body><h1>500 Write Failed</h1></body></html>";
+		}
+		_contentSize = _content.size();
 	}
 	std::ostringstream file;
 	file << _httpVersion << " " << _status << " " << getStatusMessage(_status) << "\r\n";
@@ -278,8 +278,11 @@ bool Server::parseRequest()
 			map >> key >> value >> value2;
 			_headers[key] = value + " " + value2;
 		}
-		map >> key >> value;
-		_headers[key] = value;
+		else
+		{
+			map >> key >> value;
+			_headers[key] = value;
+		}
 	}
 	pos = _buffer_in.find("\r\n\r\n");
 	_body = _buffer_in.substr(pos + 4);
@@ -287,13 +290,13 @@ bool Server::parseRequest()
 	{
 		if (_body.find("--\r\n") != std::string::npos)
 			return (true);
-		// std::map<std::string, std::string>::iterator it = _headers.find("Content-Length:");
-		// if (it != _headers.end())
-		// {
-		// 	size_t content_length = atoi(it->second.c_str());
-		// 	if (_body.size() >= content_length)
-		// 		return (true);
-		// }
+		std::map<std::string, std::string>::iterator it = _headers.find("Content-Length:");
+		if (it != _headers.end())
+		{
+			size_t content_length = atoi(it->second.c_str());
+			if (_body.size() >= content_length)
+				return (true);
+		}
 		return (false);
 	}
 	return (true);
@@ -356,12 +359,18 @@ void Server::getEnvp(std::vector<std::string>& env_strings)
 	}
 }
 
-void	Server::handleCgi(void)
+void Server::handleCgi(void)
 {
-	std::string path = "." +_uri;
-	std::ifstream test(path.c_str());
+    // std::cout << "=== CGI DEBUG ===" << std::endl;
+    // std::cout << "Method: [" << _method << "]" << std::endl;
+    // std::cout << "URI: [" << _uri << "]" << std::endl;
+    // std::cout << "Body size: " << _body.size() << std::endl;
+    // std::cout << "Body content: [" << _body << "]" << std::endl;
+    // std::cout << "================" << std::endl;
+    std::string path = "." + _uri;
+    std::ifstream test(path.c_str());
     if (!test.is_open()) 
-	{
+    {
         std::cerr << "[CGI] File not found: " << path << std::endl;
         _status = 404;
         _content = "<html><body><h1>404 CGI Script Not Found</h1></body></html>";
@@ -372,71 +381,167 @@ void	Server::handleCgi(void)
     }
     test.close();
 
-	char* argv[] = {const_cast<char*>(path.c_str()), NULL};
-	std::vector<std::string> env_strings;
-	getEnvp(env_strings);
-	std::vector<char*> envp;
+    char* argv[] = {const_cast<char*>(path.c_str()), NULL};
+    std::vector<std::string> env_strings;
+    getEnvp(env_strings);
+    std::vector<char*> envp;
     for (size_t i = 0; i < env_strings.size(); ++i) 
         envp.push_back(const_cast<char*>(env_strings[i].c_str()));
     envp.push_back(NULL);
-	int pipe_fd[2];
-	size_t n = 0;
-	int status2;
-	char buffer[BUFSIZ];
-	if (pipe(pipe_fd) == -1) 
-	{
+
+    int pipe_stdin[2];
+    int pipe_stdout[2];
+    
+    if (pipe(pipe_stdin) == -1 || pipe(pipe_stdout) == -1) 
+    {
         perror("pipe");
         return;
     }
-	pid_t pid = fork();
-	if (pid == -1) 
-	{
+
+    pid_t pid = fork();
+    if (pid == -1) 
+    {
         perror("fork");
-        close(pipe_fd[0]);
-        close(pipe_fd[1]);
+        close(pipe_stdin[0]);
+        close(pipe_stdin[1]);
+        close(pipe_stdout[0]);
+        close(pipe_stdout[1]);
         return;
     }
-	if (pid == 0)
-	{
-		close(pipe_fd[0]);
-		dup2(pipe_fd[1], STDOUT_FILENO);
-		close(pipe_fd[1]);
-		execve(path.c_str(), argv, envp.data());
-		perror("execve");
-		exit(1) ;
-	}
-	close(pipe_fd[1]);
-	std::string cgi_output;
-	while ((n = read(pipe_fd[0], buffer, BUFSIZ)) > 0)
-		cgi_output.append(buffer, n);
-	close(pipe_fd[0]);
-	if (waitpid(pid, &status2, 0) == -1)
-	{
-		perror("waitpid");
-		return ;
-	}
-	size_t header_end = cgi_output.find("\r\n\r\n") + 4;
-	if (header_end == std::string::npos)
-	{
-		_status = 500;
-		_content = "<html><body><h1>500 Invalid CGI Output</h1></body></html>";
-		_contentSize = _content.size();
-		getResponse();
-		sendResponse();
-		return;
-	}
-	size_t pos = cgi_output.find("\r\n");
-	std::string contentType = cgi_output.substr(0, pos);
-	std::string body = cgi_output.substr(header_end);
-	std::ostringstream response;
-	response << "HTTP/1.1 200 OK\r\n";
-	response << contentType << "\r\n";
-	response << "Content-Length: " << body.size() << "\r\n";
-	response << "Connection: close\r\n";
-	response << "\r\n";
-	response << body;
-	_response = response.str();
-	sendResponse();
+
+    if (pid == 0)
+    {
+        // Processus enfant
+        close(pipe_stdin[1]);
+        if (_method == "POST")
+            dup2(pipe_stdin[0], STDIN_FILENO);
+        close(pipe_stdin[0]);
+        
+        close(pipe_stdout[0]);
+        dup2(pipe_stdout[1], STDOUT_FILENO);
+        dup2(pipe_stdout[1], STDERR_FILENO); // Capturer aussi stderr
+        close(pipe_stdout[1]);
+        
+        execve(path.c_str(), argv, envp.data());
+        perror("execve");
+        exit(1);
+    }
+
+    // Processus parent
+    close(pipe_stdin[0]);
+    
+    // Écrire le body si POST
+    if (_method == "POST" && !_body.empty())
+    {
+        ssize_t written = write(pipe_stdin[1], _body.c_str(), _body.length());
+        if (written == -1)
+            perror("write to CGI stdin");
+    }
+    close(pipe_stdin[1]);
+    close(pipe_stdout[1]);
+
+    // Rendre le pipe non-bloquant
+    int flags = fcntl(pipe_stdout[0], F_GETFL, 0);
+    fcntl(pipe_stdout[0], F_SETFL, flags | O_NONBLOCK);
+
+    std::string cgi_output;
+    char buffer[BUFSIZ];
+    time_t start_time = time(NULL);
+    int timeout = 5; // 5 secondes de timeout
+
+    // Lecture avec timeout
+    while (true)
+    {
+        int status;
+        pid_t result = waitpid(pid, &status, WNOHANG);
+        
+        if (result == -1)
+        {
+            perror("waitpid");
+            close(pipe_stdout[0]);
+            return;
+        }
+        
+        // Le processus est terminé
+        if (result > 0)
+        {
+            // Lire les données restantes
+            ssize_t n;
+            while ((n = read(pipe_stdout[0], buffer, BUFSIZ)) > 0)
+                cgi_output.append(buffer, n);
+            break;
+        }
+        
+        // Timeout dépassé
+        if (difftime(time(NULL), start_time) > timeout)
+        {
+            std::cerr << "[CGI] Timeout - killing process " << pid << std::endl;
+            kill(pid, SIGKILL);
+            waitpid(pid, &status, 0);
+            close(pipe_stdout[0]);
+            
+            _status = 504;
+            _content = "<html><body><h1>504 Gateway Timeout</h1></body></html>";
+            _contentSize = _content.size();
+            getResponse();
+            sendResponse();
+            return;
+        }
+        
+        // Lire les données disponibles
+        ssize_t n = read(pipe_stdout[0], buffer, BUFSIZ);
+        if (n > 0)
+            cgi_output.append(buffer, n);
+        else if (n == -1 && errno != EAGAIN && errno != EWOULDBLOCK)
+        {
+            perror("read from CGI");
+            break;
+        }
+        
+        usleep(10000); // Attendre 10ms
+    }
+    
+    close(pipe_stdout[0]);
+
+    std::cout << "[CGI] Output size: " << cgi_output.size() << std::endl;
+
+    if (cgi_output.empty())
+    {
+        _status = 500;
+        _content = "<html><body><h1>500 CGI Script Error - No Output</h1></body></html>";
+        _contentSize = _content.size();
+        getResponse();
+        sendResponse();
+        return;
+    }
+
+    size_t header_end = cgi_output.find("\r\n\r\n");
+    if (header_end == std::string::npos)
+    {
+        std::cerr << "[CGI] No header separator found in output" << std::endl;
+        _status = 500;
+        _content = "<html><body><h1>500 Invalid CGI Output</h1></body></html>";
+        _contentSize = _content.size();
+        getResponse();
+        sendResponse();
+        return;
+    }
+    
+    header_end += 4;
+    size_t pos = cgi_output.find("\r\n");
+    std::string contentType = cgi_output.substr(0, pos);
+    std::string body = cgi_output.substr(header_end);
+    
+    std::ostringstream response;
+    response << "HTTP/1.1 200 OK\r\n";
+    response << contentType << "\r\n";
+    response << "Content-Length: " << body.size() << "\r\n";
+    response << "Connection: close\r\n";
+    response << "\r\n";
+    response << body;
+    
+    _response = response.str();
+    sendResponse();
 }
 
 void Server::read_data_from_socket(int Socket)

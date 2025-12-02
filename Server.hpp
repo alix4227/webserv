@@ -1,7 +1,7 @@
 #ifndef SERVER_HPP
 #define SERVER_HPP
 
-#define LISTENING_PORT 8082
+#define LISTENING_PORT 8081
 #define PENDING_QUEUE_MAXLENGTH 1000000 // nombre max de clients qui seront en attente
 
 #include <sys/socket.h>
