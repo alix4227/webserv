@@ -248,6 +248,7 @@ void Server::handleMethod(void)
 bool Server::parseRequest()
 {
 	size_t pos = 0;
+	size_t posEnd = 0;
 	std::string key;
 	std::string value;
 	std::string value2;
@@ -272,25 +273,26 @@ bool Server::parseRequest()
 	std::istringstream h(headers);
 	while (getline(h, line))
 	{
-		std::istringstream map(line);
-		if (line.find(";") != std::string::npos)
-		{
-			map >> key >> value >> value2;
-			_headers[key] = value + " " + value2;
-		}
-		else
-		{
-			map >> key >> value;
-			_headers[key] = value;
-		}
+		pos = line.find(":");
+		if (pos == std::string::npos)
+			continue;
+		posEnd = line.find("\r");
+		if (posEnd == std::string::npos)
+			posEnd = line.length();
+		key = line.substr(0, pos);
+		value = line.substr(pos + 2, posEnd - pos - 2);
+		_headers[key] = value;
 	}
 	pos = _buffer_in.find("\r\n\r\n");
 	_body = _buffer_in.substr(pos + 4);
 	if (_method == "POST")
 	{
+		// Pour multipart/form-data (upload de fichiers)
 		if (_body.find("--\r\n") != std::string::npos)
 			return (true);
-		std::map<std::string, std::string>::iterator it = _headers.find("Content-Length:");
+		
+		// Pour application
+		std::map<std::string, std::string>::iterator it = _headers.find("Content-Length");
 		if (it != _headers.end())
 		{
 			size_t content_length = atoi(it->second.c_str());
