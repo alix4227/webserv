@@ -317,6 +317,7 @@ bool Server::parseRequest()
 void Server::add_to_poll_fds()
 {
 	pollfd p;
+	memset(&p, 0, sizeof(p));
 	p.fd = _clientSocket;
 	p.events = POLLIN;
 	_poll_fds.push_back(p);
