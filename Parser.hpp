@@ -30,6 +30,7 @@ class Parser
 	std::string  _defaultUri;
 	size_t _maxBodySize;
 	std::string _uploadPath;
+	std::string _cgiPath;
 	std::vector<std::string>allowedMethod;
 	std::vector<std::string>allowedCgiMethod;
 

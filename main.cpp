@@ -9,5 +9,5 @@ int main(int ac, char** av)
 	Parser Parser;
 	if (!Parser.configParser(configFileName))
 		return (1);
-	Server.pollLoop();
+	// Server.pollLoop();
 }

@@ -67,17 +67,47 @@ bool Parser::configParser(std::string filename)
 	pos += 14;
 	posEnd = content.find(" ", pos);
 	std::string GET = content.substr(pos, posEnd - pos);
+	allowedMethod.push_back(GET);
 
 	pos = content.find("POST");//method POST
 	if (pos == std::string::npos)
 		return (false);
 	posEnd = content.find(" ", pos);
 	std::string POST = content.substr(pos, posEnd - pos);
+	allowedMethod.push_back(POST);
 
 	pos = content.find("DELETE");//method DELETE
 	if (pos == std::string::npos)
 		return (false);
 	posEnd = content.find(";", pos);
 	std::string DELETE = content.substr(pos, posEnd - pos);
+	allowedMethod.push_back(DELETE);
+
+	pos = content.find("location /cgi-bin");//cgi GET
+	if (pos == std::string::npos)
+		return (false);
+
+	pos = content.find("allow_methods", pos);
+	if (pos == std::string::npos)
+		return (false);
+	pos += 14;
+	posEnd = content.find(" ", pos);
+	std::string GET_CGI = content.substr(pos, posEnd - pos);
+	allowedCgiMethod.push_back(GET_CGI);
+	
+	pos = posEnd + 1;//cgi POST
+	posEnd = content.find(";", pos);
+	std::string POST_CGI = content.substr(pos, posEnd - pos);
+	allowedCgiMethod.push_back(POST_CGI);
+	
+	pos = content.find("location /cgi-bin");//cgi Path
+	if (pos == std::string::npos)
+		return (false);
+	pos = content.find("root", pos);
+	if (pos == std::string::npos)
+		return (false);
+	pos += 5;
+	posEnd = content.find(";", pos);
+	_cgiPath = "./" + content.substr(pos, posEnd - pos);
 	return (true);
 }
