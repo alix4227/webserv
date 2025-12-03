@@ -248,12 +248,12 @@ void Server::handleMethod(void)
 bool Server::parseRequest()
 {
 	size_t pos = 0;
-	// size_t posEnd = 0;
 	std::string key;
 	std::string value;
 	std::string value2;
 	std::string body;
 	std::string headers;
+	size_t header_end;
 	std::string line;
 	std::istringstream str(_buffer_in);
 
@@ -269,7 +269,7 @@ bool Server::parseRequest()
 		_uri = _uri.substr(0, q_pos);
 	}
 	pos = _buffer_in.find("\r\n");
-	size_t header_end = _buffer_in.find("\r\n\r\n");
+	header_end = _buffer_in.find("\r\n\r\n");
 	if (header_end == std::string::npos)
 		return (false);
 	headers = _buffer_in.substr(pos + 2, header_end - pos - 2);
@@ -296,11 +296,11 @@ bool Server::parseRequest()
 	_body = _buffer_in.substr(pos + 4);
 	if (_method == "POST")
 	{
-		// Pour multipart/form-data (upload de fichiers)
+		// Pour multipart/form-data (upload de fichiers) c'est a dire body avec boundary
 		if (_body.find("--\r\n") != std::string::npos)
 			return (true);
 		
-		// Pour application
+		// Pour body sans boundary
 		std::map<std::string, std::string>::iterator it = _headers.find("Content-Length");
 		if (it != _headers.end())
 		{
@@ -422,7 +422,6 @@ void Server::handleCgi(void)
 
     if (pid == 0)
     {
-        // Processus enfant
         close(pipe_stdin[1]);
         if (_method == "POST")
             dup2(pipe_stdin[0], STDIN_FILENO);
@@ -433,7 +432,7 @@ void Server::handleCgi(void)
         dup2(pipe_stdout[1], STDERR_FILENO); // Capturer aussi stderr
         close(pipe_stdout[1]);
         
-        execve(path.c_str(), argv, envp.data());
+        execve(path.c_str(), argv, envp.data());//le CGI s'execute
         perror("execve");
         exit(1);
     }
@@ -464,7 +463,7 @@ void Server::handleCgi(void)
     while (true)
     {
         int status;
-        pid_t result = waitpid(pid, &status, WNOHANG);
+        pid_t result = waitpid(pid, &status, WNOHANG);//retourne immédiatement l'etat du processus sans bloquer
         
         if (result == -1)
         {
@@ -484,7 +483,7 @@ void Server::handleCgi(void)
         }
         
         // Timeout dépassé
-        if (difftime(time(NULL), start_time) > timeout)
+        if (difftime(time(NULL), start_time) > timeout)//lorsque le processus enfant n'est pas termine on verifie le timeout
         {
             std::cerr << "[CGI] Timeout - killing process " << pid << std::endl;
             kill(pid, SIGKILL);
@@ -500,7 +499,7 @@ void Server::handleCgi(void)
         }
         
         // Lire les données disponibles
-        ssize_t n = read(pipe_stdout[0], buffer, BUFSIZ);
+        ssize_t n = read(pipe_stdout[0], buffer, BUFSIZ);//on lit au fur et a mesure pendant l'exécution du processus, pas seulement à la fin
         if (n > 0)
             cgi_output.append(buffer, n);
         else if (n == -1 && errno != EAGAIN && errno != EWOULDBLOCK)

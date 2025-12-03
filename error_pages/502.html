@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>502 - Bad Gateway | Webserv</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+
+        .glass {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .error-code {
+            font-size: 12rem;
+            font-weight: 900;
+            line-height: 1;
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            animation: float 3s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-20px); }
+        }
+
+        .animate-fade-in {
+            animation: fadeIn 1s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body class="text-gray-100">
+    <div class="min-h-screen flex items-center justify-center px-6">
+        <div class="text-center animate-fade-in">
+            <!-- Error Code -->
+            <div class="error-code mb-8">502</div>
+
+            <!-- Error Message -->
+            <div class="glass rounded-2xl p-12 max-w-2xl mx-auto">
+                <h1 class="text-5xl font-bold mb-6 text-white">
+                    Bad Gateway
+                </h1>
+                <p class="text-xl text-gray-200 mb-8">
+                    Le serveur a reçu une réponse invalide lors du traitement de la requête CGI.
+                </p>
+
+                <!-- Details -->
+                <div class="bg-gray-900 bg-opacity-50 rounded-lg p-6 mb-8 text-left">
+                    <div class="flex items-start mb-4">
+                        <div class="text-purple-400 text-2xl mr-3">🔌</div>
+                        <div>
+                            <h3 class="text-lg font-semibold text-purple-400 mb-2">Erreur HTTP 502</h3>
+                            <p class="text-sm text-gray-300">
+                                Le serveur a reçu une réponse invalide de la part d'un script CGI ou d'un serveur amont.
+                            </p>
+                        </div>
+                    </div>
+                    <div class="border-t border-gray-700 pt-4">
+                        <h4 class="text-sm font-semibold text-gray-400 mb-2">Raisons possibles :</h4>
+                        <ul class="text-sm text-gray-400 space-y-1">
+                            <li>• Script CGI a produit une sortie invalide</li>
+                            <li>• Script CGI a planté ou timeout</li>
+                            <li>• Headers CGI malformés</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Actions -->
+                <div class="flex justify-center gap-4">
+                    <a href="/" class="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-bold py-4 px-8 rounded-full transition transform hover:scale-105 shadow-lg">
+                        🏠 Retour à l'accueil
+                    </a>
+                    <button onclick="location.reload()" class="glass hover:bg-white hover:bg-opacity-20 text-white font-bold py-4 px-8 rounded-full transition transform hover:scale-105">
+                        🔄 Réessayer
+                    </button>
+                </div>
+            </div>
+
+            <!-- Footer Info -->
+            <div class="mt-8 text-gray-300">
+                <p class="text-sm">
+                    <strong>Webserv</strong> — Serveur HTTP/1.1 en C++98
+                </p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
