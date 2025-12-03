@@ -23,6 +23,7 @@
 #include <sys/poll.h>
 # include <sys/wait.h>
 #include <algorithm>
+#include "Parser.hpp"
 
 class Server
 {
@@ -30,7 +31,7 @@ class Server
 	Server();
 	~Server();
 	void		socketServerCreation(void);
-	void		pollLoop(void);
+	bool		pollLoop(std::string configFileName);
 	int			pollCreation(void);
 	void		accept_new_connection(int server_socket, std::vector<pollfd>& poll_fds,
 					struct sockaddr_in& socketAddress, socklen_t& socketAdressLength);
@@ -66,6 +67,7 @@ class Server
 	size_t _contentSize;
 	std::map<std::string, std::string>_headers;
 	size_t _status;
+	Parser* parser;
 };
 
 #endif

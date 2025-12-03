@@ -111,3 +111,43 @@ bool Parser::configParser(std::string filename)
 	_cgiPath = "./" + content.substr(pos, posEnd - pos);
 	return (true);
 }
+
+std::string Parser::getPort() const
+{
+	return _port;
+}
+
+std::string Parser::getRoot() const
+{
+	return _root;
+}
+
+std::string Parser::getDefaultUri() const
+{
+	return _defaultUri;
+}
+
+size_t Parser::getMaxBodySize() const
+{
+	return _maxBodySize;
+}
+
+std::string Parser::getUploadPath() const
+{
+	return _uploadPath;
+}
+
+std::string Parser::getCgiPath() const
+{
+	return _cgiPath;
+}
+
+std::vector<std::string> Parser::getAllowedMethod() const
+{
+	return allowedMethod;
+}
+
+std::vector<std::string> Parser::getAllowedCgiMethod() const
+{
+	return allowedCgiMethod;
+}

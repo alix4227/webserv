@@ -22,7 +22,8 @@ Server::Server()
 
 Server::~Server()
 {
-	
+	if (parser)
+		delete parser;
 }
 std::string Server::getStatusMessage(size_t code) 
 {
@@ -111,7 +112,7 @@ std::string Server::getFileName(void)
 
 void Server::handlePostMethod()
 {
-	std::string path = "./www/uploads/" + getFileName();
+	std::string path = parser->getUploadPath() + getFileName();
 	std::ofstream uploadfile(path.c_str(), std::ios::binary);
 	size_t pos = _body.find("Content-Type:");
 	if (pos == std::string::npos) 
@@ -153,7 +154,7 @@ void Server::handleGetMethod(void)
 {
 	//redirection "/" vers "/index.html"
 	if (_uri == "/")
-		_uri = "/index.html";
+		_uri = parser->getDefaultUri();
 	
 	std::string path = "./www" + _uri;
 
@@ -190,7 +191,7 @@ void Server::handleGetMethod(void)
 
 void Server::handleDeleteMethod(void)
 {
-	std::string path = "./www" + _uri;
+	std::string path = parser->getRoot() + _uri;
 	std::cout << "[Server] Trying to open: " << path << std::endl;
 	if (path.find("..") != std::string::npos)
 	{
@@ -636,7 +637,7 @@ void	Server::socketServerCreation(void)
 	// 4. Configure la socket
 	memset(&_socketAddress, 0, sizeof(_socketAddress));
 	_socketAddress.sin_family = AF_INET;//indique qu'on veut une adresse IPV4
-	_socketAddress.sin_port = htons(LISTENING_PORT); //on indique le port par lequel le serveur ecoute
+	_socketAddress.sin_port = htons(atoi(parser->getPort().c_str())); //on indique le port par lequel le serveur ecoute
 	_socketAddress.sin_addr.s_addr = htonl(INADDR_ANY); // on accepte n'importe quelle adresse de connexion
 	// 5. Liaison de la socket à l'adresse et au port
 	_socketAdressLength = sizeof(_socketAddress);
@@ -655,8 +656,11 @@ void	Server::socketServerCreation(void)
 	}
 }
 
-void	Server::pollLoop(void)
+bool	Server::pollLoop(std::string configFileName)
 {
+	parser = new Parser();
+	if (!parser->configParser(configFileName))
+		return (false);
 	socketServerCreation();
 	//on cree un tableau de structure pollfd. Une structure pollfd par client.
 	pollfd p;
@@ -693,4 +697,5 @@ void	Server::pollLoop(void)
             }
         }
     }
+	return (true);
 }

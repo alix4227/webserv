@@ -24,7 +24,7 @@
 
 class Parser
 {
-	private:
+	// private:
 	std::string _port;
 	std::string _root;
 	std::string  _defaultUri;
@@ -38,6 +38,15 @@ class Parser
 	Parser();
 	~Parser();
 	bool configParser(std::string filename);
+	
+	std::string getPort() const;
+	std::string getRoot() const;
+	std::string getDefaultUri() const;
+	size_t getMaxBodySize() const;
+	std::string getUploadPath() const;
+	std::string getCgiPath() const;
+	std::vector<std::string> getAllowedMethod() const;
+	std::vector<std::string> getAllowedCgiMethod() const;
 };
 
 #endif
