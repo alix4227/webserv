@@ -79,15 +79,15 @@ std::string Server::getStatusMessage(size_t code)
 
 std::string Server::getContentType(std::string uri)
 {
-	size_t pos = _uri.find_last_of('.');
+	size_t pos = uri.find_last_of('.');
 	if (pos == std::string::npos)
-		return "application/octet-stream";
+		return "text/html; charset=utf-8";
 	std::string ext = uri.substr(pos);
 	if (ext == ".html" || ext == ".htm")
 		return "text/html; charset=utf-8";
 	else if (ext == ".css")
 		return "text/css; charset=utf-8";
-	else if (_uri.find(".pdf") != std::string::npos)
+	else if (uri.find(".pdf") != std::string::npos)
 		return ("application/pdf");
 	else if (ext == ".js")
 		return "application/javascript";
@@ -102,7 +102,7 @@ std::string Server::getContentType(std::string uri)
 	else if (ext == ".ico")
 		return "image/x-icon";
 	else
-		return "application/octet-stream";
+		return "text/html; charset=utf-8";
 }
 
 void Server::sendResponse(void)
@@ -464,19 +464,27 @@ void Server::handleCgi(void)
     // std::cout << "Body content: [" << _body << "]" << std::endl;
     // std::cout << "================" << std::endl;
     std::string path = parser->getRoot() +_uri;
-	std::cout << path << std::endl;
-    std::ifstream test(path.c_str());
-    if (!test.is_open()) 
+    // std::ifstream test(path.c_str());
+    // if (!test.is_open()) 
+    // {
+    //     std::cerr << "[CGI] File not found: " << path << std::endl;
+    //     _status = 404;
+    //     getErrorPage();
+    //     getResponse();
+    //     sendResponse();
+    //     return;
+    // }
+    // test.close();
+	struct stat path_stat;
+    if (stat(path.c_str(), &path_stat) != 0 || !S_ISREG(path_stat.st_mode)) 
     {
-        std::cerr << "[CGI] File not found: " << path << std::endl;
+        std::cerr << "[CGI] File not found or not a regular file: " << path << std::endl;
         _status = 404;
         getErrorPage();
         getResponse();
         sendResponse();
         return;
     }
-    test.close();
-
     char* argv[] = {const_cast<char*>(path.c_str()), NULL};
     std::vector<std::string> env_strings;
     getEnvp(env_strings);
@@ -669,7 +677,7 @@ void Server::read_data_from_socket(int Socket)
 	{
 		if (parseRequest())
 		{
-			if (_uri.find("/cgi-bin/") != std::string::npos && is_allowed_cgi_method())
+			if (_uri.find("/cgi-bin") != std::string::npos && is_allowed_cgi_method())
 				handleCgi();
 			else
 				handleMethod();

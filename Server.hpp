@@ -23,6 +23,7 @@
 #include <sys/poll.h>
 # include <sys/wait.h>
 #include <algorithm>
+#include <sys/stat.h>
 #include "Parser.hpp"
 
 class Server
