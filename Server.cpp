@@ -334,7 +334,14 @@ bool Server::parseRequest()
 
 	str >> _method >> _uri >> _httpVersion;
 	if (!is_allowed_method())
-		return (false);
+	{
+		std::cerr << "[Server] Unsupported method: " << _method << std::endl;
+        _status = 405;
+        getErrorPage();
+        getResponse();
+        sendResponse();
+        return false;
+	}
 	if (_httpVersion != "HTTP/1.1")
 		return (false);
 	size_t q_pos = _uri.find("?");
