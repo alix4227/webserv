@@ -109,6 +109,48 @@ bool Parser::configParser(std::string filename)
 	pos += 5;
 	posEnd = content.find(";", pos);
 	_cgiPath = "./" + content.substr(pos, posEnd - pos);
+
+	pos = content.find("errors_page 403");//path error page 403
+	if (pos == std::string::npos)
+		return (false);
+	pos += 16;
+	posEnd = content.find(";", pos);
+	_errorPage403 = "." + content.substr(pos, posEnd - pos);
+
+	pos = content.find("errors_page 404");//path error page 404
+	if (pos == std::string::npos)
+		return (false);
+	pos += 16;
+	posEnd = content.find(";", pos);
+	_errorPage404 = "." + content.substr(pos, posEnd - pos);
+
+	pos = content.find("errors_page 405");//path error page 405
+	if (pos == std::string::npos)
+		return (false);
+	pos += 16;
+	posEnd = content.find(";", pos);
+	_errorPage405 = "." + content.substr(pos, posEnd - pos);
+
+	pos = content.find("errors_page 413");//path error page 413
+	if (pos == std::string::npos)
+		return (false);
+	pos += 16;
+	posEnd = content.find(";", pos);
+	_errorPage413 = "." + content.substr(pos, posEnd - pos);
+
+	pos = content.find("errors_page 500");//path error page 500
+	if (pos == std::string::npos)
+		return (false);
+	pos += 16;
+	posEnd = content.find(";", pos);
+	_errorPage500 = "." + content.substr(pos, posEnd - pos);
+
+	pos = content.find("errors_page 502");//path error page 502
+	if (pos == std::string::npos)
+		return (false);
+	pos += 16;
+	posEnd = content.find(";", pos);
+	_errorPage502 = "." + content.substr(pos, posEnd - pos);
 	return (true);
 }
 
@@ -150,4 +192,34 @@ std::vector<std::string> Parser::getAllowedMethod() const
 std::vector<std::string> Parser::getAllowedCgiMethod() const
 {
 	return allowedCgiMethod;
+}
+
+std::string Parser::getErrorPage403() const
+{
+	return _errorPage403;
+}
+
+std::string Parser::getErrorPage404() const
+{
+	return _errorPage404;
+}
+
+std::string Parser::getErrorPage405() const
+{
+	return _errorPage405;
+}
+
+std::string Parser::getErrorPage413() const
+{
+	return _errorPage413;
+}
+
+std::string Parser::getErrorPage500() const
+{
+	return _errorPage500;
+}
+
+std::string Parser::getErrorPage502() const
+{
+	return _errorPage502;
 }

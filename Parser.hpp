@@ -26,6 +26,12 @@ class Parser
 {
 	// private:
 	std::string _port;
+	std::string _errorPage403;
+	std::string _errorPage404;
+	std::string _errorPage405;
+	std::string _errorPage413;
+	std::string _errorPage500;
+	std::string _errorPage502;
 	std::string _root;
 	std::string  _defaultUri;
 	size_t _maxBodySize;
@@ -47,6 +53,12 @@ class Parser
 	std::string getCgiPath() const;
 	std::vector<std::string> getAllowedMethod() const;
 	std::vector<std::string> getAllowedCgiMethod() const;
+	std::string getErrorPage403() const;
+	std::string getErrorPage404() const;
+	std::string getErrorPage405() const;
+	std::string getErrorPage413() const;
+	std::string getErrorPage500() const;
+	std::string getErrorPage502() const;
 };
 
 #endif

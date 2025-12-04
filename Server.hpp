@@ -49,6 +49,10 @@ class Server
 	std::string	getContentType(std::string _uri);
 	std::string	getFileName(void);
 	void		getEnvp(std::vector<std::string>& env_strings);
+	bool is_allowed_method();
+	bool is_allowed_cgi_method();
+	void getErrorPage();
+	std::string findWhichErrorPage();
 
 	private:
 	int _socketFD;
@@ -68,6 +72,7 @@ class Server
 	std::map<std::string, std::string>_headers;
 	size_t _status;
 	Parser* parser;
+	
 };
 
 #endif

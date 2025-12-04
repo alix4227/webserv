@@ -25,6 +25,40 @@ Server::~Server()
 	if (parser)
 		delete parser;
 }
+std::string Server::findWhichErrorPage()
+{
+	switch (_status) 
+	{
+        case 403: return parser->getErrorPage403();
+        case 404: return parser->getErrorPage404();
+        case 405: return parser->getErrorPage405();
+        case 413: return parser->getErrorPage413();
+        case 500: return parser->getErrorPage500();
+        case 502: return parser->getErrorPage502();
+        default: return parser->getErrorPage500();
+    }
+}
+void Server::getErrorPage()
+{
+	std::ifstream file(findWhichErrorPage().c_str(), std::ios::binary);
+	if (!file.is_open())
+		return ;
+	file.seekg(0, std::ios::end);
+	_contentSize = file.tellg();
+	if (_contentSize > parser->getMaxBodySize())
+	{
+		_status = 413;
+		_content = "<html><body><h1>413 Payload Too Large</h1></body></html>";
+		_contentSize = _content.size();
+		getResponse();
+		return ;
+	}
+	file.seekg(0, std::ios::beg);
+	_content.resize(_contentSize);
+	file.read(&_content[0], _contentSize);
+	file.close();
+	
+}
 std::string Server::getStatusMessage(size_t code) 
 {
     switch (code) 
@@ -118,6 +152,20 @@ void Server::handlePostMethod()
 	if (pos == std::string::npos) 
 		return;
 	_body = _body.substr(pos);
+	if (_body.size() > parser->getMaxBodySize())//verification de la taille du body
+	{
+		_status = 413;
+		getErrorPage();
+       	std::ostringstream file;
+		file << _httpVersion << " " << _status << " " << getStatusMessage(_status) << "\r\n";
+		file << "Content-Type: text/html\r\n";
+		file << "Content-Length: " << _contentSize << "\r\n";
+		file << "Connection: close\r\n";
+		file << "\r\n";
+		file << _content;
+		_response = file.str();
+        return ;
+	}
 	pos = _body.find("\r\n\r\n");
 	pos += 4;
 	size_t posEnd = _body.find("\r\n------");
@@ -131,14 +179,14 @@ void Server::handlePostMethod()
 		if (!uploadfile.fail())
 		{
 			_status = 201;
-			_content = "<html><body><h1>201 File Created</h1><p>Upload successful</p></body></html>";
+			_content = "<html><body><h1>201 Created - File Uploaded Successfully</h1></body></html>";
+			_contentSize = _content.size();
 		}
 		else
 		{
 			_status = 500;
-			_content = "<html><body><h1>500 Write Failed</h1></body></html>";
+			getErrorPage();
 		}
-		_contentSize = _content.size();
 	}
 	std::ostringstream file;
 	file << _httpVersion << " " << _status << " " << getStatusMessage(_status) << "\r\n";
@@ -163,8 +211,7 @@ void Server::handleGetMethod(void)
 	if (path.find("..") != std::string::npos)
 	{
 		_status = 403;
-		_content = "<html><body><h1>403 Forbidden</h1></body></html>";
-		_contentSize = _content.size();
+		getErrorPage();
 		getResponse();
 		return ;
 	}
@@ -172,14 +219,20 @@ void Server::handleGetMethod(void)
 	if (!file.is_open())
 	{
 		_status = 404;
-		_content = "<html><body><h1>404 Not Found</h1></body></html>";
-		_contentSize = _content.size();
+		getErrorPage();
 		std::cout << "[Server] File not found: " << path << std::endl;
 		getResponse();
 		return ;
 	}
 	file.seekg(0, std::ios::end);
 	_contentSize = file.tellg();
+	if (_contentSize > parser->getMaxBodySize())
+	{
+		_status = 413;
+		getErrorPage();
+		getResponse();
+		return ;
+	}
 	file.seekg(0, std::ios::beg);
 	_content.resize(_contentSize);
 	file.read(&_content[0], _contentSize);
@@ -196,8 +249,7 @@ void Server::handleDeleteMethod(void)
 	if (path.find("..") != std::string::npos)
 	{
 		_status = 403;
-		_content = "<html><body><h1>403 Forbidden</h1></body></html>";
-		_contentSize = _content.size();
+		getErrorPage();
 		getResponse();
 		return ;
 	}
@@ -206,8 +258,7 @@ void Server::handleDeleteMethod(void)
 	{
 		file.close();
 		_status = 404;
-		_content = "<html><body><h1>404 Not Found</h1></body></html>";
-		_contentSize = _content.size();
+		getErrorPage();
 		std::cout << "[Server] File not found: " << path << std::endl;
 		getResponse();
 		return ;
@@ -216,13 +267,13 @@ void Server::handleDeleteMethod(void)
 	if (std::remove(path.c_str()) == 0) 
 	{
 		_status = 200;
-		_content = "<html><body><h1>File deleted successfully</h1></body></html>";
+		_content = "<html><body><h1>200 OK - File Deleted Successfully</h1></body></html>";
+		_contentSize = _content.size();
 	}
     else 
 	{
     	_status = 500;
-		_content = "<html><body><h1>500 Internal Server Error</h1></body></html>";
-		_contentSize = _content.size();
+		getErrorPage();
 		std::cout << "[Server] Error deleting file: " << strerror(errno) << std::endl;
     }
 	getResponse();
@@ -245,7 +296,30 @@ void Server::handleMethod(void)
     }
 	sendResponse();
 }
-
+bool Server::is_allowed_cgi_method()
+{
+	size_t i = 0;
+	size_t size = parser->getAllowedCgiMethod().size();
+	while (i < size)
+	{
+		if (parser->getAllowedCgiMethod()[i] == _method)
+			return (true);
+		i++;
+	}
+	return (false);
+}
+bool Server::is_allowed_method()
+{
+	size_t i = 0;
+	size_t size = parser->getAllowedMethod().size();
+	while (i < size)
+	{
+		if (parser->getAllowedMethod()[i] == _method)
+			return (true);
+		i++;
+	}
+	return (false);
+}
 bool Server::parseRequest()
 {
 	size_t pos = 0;
@@ -259,7 +333,7 @@ bool Server::parseRequest()
 	std::istringstream str(_buffer_in);
 
 	str >> _method >> _uri >> _httpVersion;
-	if (_method != "GET" && _method != "POST" && _method != "DELETE")
+	if (!is_allowed_method())
 		return (false);
 	if (_httpVersion != "HTTP/1.1")
 		return (false);
@@ -295,6 +369,15 @@ bool Server::parseRequest()
 	}
 	pos = _buffer_in.find("\r\n\r\n");
 	_body = _buffer_in.substr(pos + 4);
+	// if (_body.size() > parser->getMaxBodySize())//verification de la taille du body
+	// {
+	// 	_status = 413;
+	// 	_content = "<html><body><h1>413 Payload Too Large</h1></body></html>";
+    //     _contentSize = _content.size();
+    //     getResponse();
+    //     sendResponse();
+    //     return (false);
+	// }
 	if (_method == "POST")
 	{
 		// Pour multipart/form-data (upload de fichiers) c'est a dire body avec boundary
@@ -380,14 +463,14 @@ void Server::handleCgi(void)
     // std::cout << "Body size: " << _body.size() << std::endl;
     // std::cout << "Body content: [" << _body << "]" << std::endl;
     // std::cout << "================" << std::endl;
-    std::string path = "." + _uri;
+    std::string path = parser->getRoot() +_uri;
+	std::cout << path << std::endl;
     std::ifstream test(path.c_str());
     if (!test.is_open()) 
     {
         std::cerr << "[CGI] File not found: " << path << std::endl;
         _status = 404;
-        _content = "<html><body><h1>404 CGI Script Not Found</h1></body></html>";
-        _contentSize = _content.size();
+        getErrorPage();
         getResponse();
         sendResponse();
         return;
@@ -520,8 +603,7 @@ void Server::handleCgi(void)
     if (cgi_output.empty())
     {
         _status = 500;
-        _content = "<html><body><h1>500 CGI Script Error - No Output</h1></body></html>";
-        _contentSize = _content.size();
+       	getErrorPage();
         getResponse();
         sendResponse();
         return;
@@ -532,8 +614,7 @@ void Server::handleCgi(void)
     {
         std::cerr << "[CGI] No header separator found in output" << std::endl;
         _status = 500;
-        _content = "<html><body><h1>500 Invalid CGI Output</h1></body></html>";
-        _contentSize = _content.size();
+        getErrorPage();
         getResponse();
         sendResponse();
         return;
@@ -588,7 +669,7 @@ void Server::read_data_from_socket(int Socket)
 	{
 		if (parseRequest())
 		{
-			if (_uri.find("/cgi-bin/") != std::string::npos)
+			if (_uri.find("/cgi-bin/") != std::string::npos && is_allowed_cgi_method())
 				handleCgi();
 			else
 				handleMethod();
