@@ -296,6 +296,7 @@ void Server::handleMethod(void)
     }
 	sendResponse();
 }
+
 bool Server::is_allowed_cgi_method()
 {
 	size_t i = 0;
@@ -308,6 +309,7 @@ bool Server::is_allowed_cgi_method()
 	}
 	return (false);
 }
+
 bool Server::is_allowed_method()
 {
 	size_t i = 0;
@@ -320,6 +322,58 @@ bool Server::is_allowed_method()
 	}
 	return (false);
 }
+
+std::string Server::urlDecode(const std::string& str)
+{
+    std::string result;
+    for (size_t i = 0; i < str.length(); ++i)
+    {
+        if (str[i] == '%' && i + 2 < str.length())
+        {
+            // Convertir les deux caractères hexadécimaux manuellement
+            char hex1 = str[i + 1];
+            char hex2 = str[i + 2];
+            
+            int value1 = 0;
+            int value2 = 0;
+            
+            // Convertir premier caractère hex
+            if (hex1 >= '0' && hex1 <= '9')
+                value1 = hex1 - '0';
+            else if (hex1 >= 'A' && hex1 <= 'F')
+                value1 = hex1 - 'A' + 10;
+            else if (hex1 >= 'a' && hex1 <= 'f')
+                value1 = hex1 - 'a' + 10;
+            else
+            {
+                result += str[i];
+                continue;
+            }
+            
+            // Convertir deuxième caractère hex
+            if (hex2 >= '0' && hex2 <= '9')
+                value2 = hex2 - '0';
+            else if (hex2 >= 'A' && hex2 <= 'F')
+                value2 = hex2 - 'A' + 10;
+            else if (hex2 >= 'a' && hex2 <= 'f')
+                value2 = hex2 - 'a' + 10;
+            else
+            {
+                result += str[i];
+                continue;
+            }
+            
+            result += static_cast<char>(value1 * 16 + value2);
+            i += 2;
+        }
+        else if (str[i] == '+')
+            result += ' ';
+        else
+            result += str[i];
+    }
+    return result;
+}
+
 bool Server::parseRequest()
 {
 	size_t pos = 0;
@@ -350,6 +404,7 @@ bool Server::parseRequest()
 		_query = _uri.substr(q_pos + 1);
 		_uri = _uri.substr(0, q_pos);
 	}
+	_uri = urlDecode(_uri);
 	pos = _buffer_in.find("\r\n");
 	header_end = _buffer_in.find("\r\n\r\n");
 	if (header_end == std::string::npos)

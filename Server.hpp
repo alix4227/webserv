@@ -54,6 +54,7 @@ class Server
 	bool is_allowed_cgi_method();
 	void getErrorPage();
 	std::string findWhichErrorPage();
+	std::string urlDecode(const std::string& str);
 
 	private:
 	int _socketFD;
